@@ -1,0 +1,11 @@
+Compilar C para RISC-V
+    clang-15 --target=riscv32 -march=rv32g -mabi=ilp32d -mno-relax prog.c -S -o prog.s
+
+Montar
+    clang-15 --target=riscv32 -march=rv32g -mabi=ilp32d -mno-relax prog.s -c -o prog.o
+
+Gerar o executavel
+    ld.lld prog.o module1.o module2.o -o prog.x
+
+Desmontar
+    llvm-objdump -D prog.o
