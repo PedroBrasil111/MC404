@@ -9,3 +9,4 @@ Gerar o executavel
 
 Desmontar
     llvm-objdump -D prog.o
+
