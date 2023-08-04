@@ -49,10 +49,10 @@ void _start()
 #define STDIN_FD  0
 #define STDOUT_FD 1
 
-/* Aloca um buffer com 10 bytes.*/
 char buffer[6];
 
-int calcular_resultado(int num1, int num2, char op) {
+int calcular_resultado(int num1, int num2, char op)
+{
   if (op == '*')
     return num1 * num2;
   else if (op == '+')
