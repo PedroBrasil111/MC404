@@ -54,8 +54,8 @@ int representacao(char* str) {
   if (str[1] == 'x')
     return hex;
   else if (str[0] == '-')
-    return neg;
-  return pos;
+    return NEG;
+  return POS;
 }
 
 int decimal_to_int(char* str, int strlen) {
@@ -104,9 +104,9 @@ int main() {
   /* Read up to 20 bytes from the standard input into the str buffer */
   int n = read(STDIN_FD, str, 20);
   int rep = representacao(str);
-  if (rep == pos) {
+  if (rep == POS) {
 
-  } else if (rep == neg) {
+  } else if (rep == NEG) {
 
   } else {
 
