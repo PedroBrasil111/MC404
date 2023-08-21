@@ -72,9 +72,11 @@ int decimal_to_binary(char* str, char *binario, int strlen) {
 
 int main() {
   char str[20] = {"1024"}, binario[20];
+  char buffer[20];
   /* Read up to 20 bytes from the standard input into the str buffer */
   //int n = scanf("%s", str);
   //int rep = representacao(str);
+  fgets(buffer, sizeof(buffer), stdin);
   decimal_to_binary(str, binario, 4);
   printf("%s\n", binario);
   /*
