@@ -49,7 +49,7 @@ void _start() {
 #define pos 0
 #define neg 1
 #define hex 2
-
+/*
 int representacao(char* str) {
   if (str[1] == 'x')
     return hex;
@@ -98,21 +98,13 @@ int decimal_to_binary(char* str, int strlen) {
   }
 
 }
+*/
 
 int main() {
   char str[20];
   /* Read up to 20 bytes from the standard input into the str buffer */
   int n = read(STDIN_FD, str, 20);
-  int rep = representacao(str);
-  if (rep == POS) {
-
-  } else if (rep == NEG) {
-
-  } else {
-
-  }
-
-
+  str[0] = n + '0';
   /* Write n bytes from the str buffer to the standard output */
   write(STDOUT_FD, str, n);
   return 0;
