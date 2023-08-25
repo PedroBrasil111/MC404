@@ -11,7 +11,7 @@ int formatar_hexa(char* hexa, char* input, int input_len) {
   }
   return 8;
 }
-char symbol_from_value(int value, int base) {
+char simbolo_do_valor(int value, int base) {
   if (value >= 0 && value <= 9)
     return '0' + value;
   return 'a' + value - 10;
@@ -24,7 +24,7 @@ int completar_hexa(char* hexa, int hexa_len) {
   hexa[0] = '0';
   return 8;
 }
-int value_from_symbol(char symbol) {
+int valor_do_simbolo(char symbol) {
   if (symbol >= '0' && symbol <= '9')
     return symbol - '0';
   return symbol - 'a' + 10; 
@@ -34,7 +34,7 @@ int int_to_base(char* str_number, int n, int base) {
   char aux;
   while (tmp != 0) {
     rem = tmp % base;
-    str_number[i] = symbol_from_value(rem, base);
+    str_number[i] = simbolo_do_valor(rem, base);
     tmp = tmp / base;
     i++;
   }
@@ -53,7 +53,7 @@ int hexa_to_binary(char* binary, char* hexa, int hexa_len) {
   char bits[4];
   int i = 0, value, num_bits;
   for (int j = 0; j < hexa_len; j++) {
-    value = value_from_symbol(hexa[j]);
+    value = valor_do_simbolo(hexa[j]);
     num_bits = int_to_base(bits, value, 2);
     for (int k = 0; k < 4 - num_bits; k++)
       binary[i++] = '0';
