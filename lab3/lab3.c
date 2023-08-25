@@ -70,12 +70,12 @@ int remover_prefixo(char* num, int num_len) {
 int completar_zeros(char* num, int num_len, int qtd_bytes) {
   int i;
   num[qtd_bytes] = '\n';
-  for (i = num_len - 1; i >= 0; i--) {
+  // desloca
+  for (i = num_len - 1; i >= 0; i--)
     num[qtd_bytes - num_len + i] = num[i];
-  }
-  for (int j = 0; j < qtd_bytes - num_len; j++) {
+  // adiciona zeros
+  for (int j = 0; j < qtd_bytes - num_len; j++)
     num[j] = '0';
-  }
   return qtd_bytes;
 }
 
@@ -97,10 +97,12 @@ int int_para_base(char* str_num, int n, int base) {
   return i;
 }
 
-int complemento_de_base(char *num, int num_len, int base) {
+int complemento_base(char *num, int num_len, int base) {
   int max_base = simbolo_do_valor(base - 1, base);
+  // inverte
   for (int i = 0; i < num_len; i++)
     num[i] = simbolo_do_valor(base - 1 - valor_do_simbolo(num[i]), base);
+  // soma 1
   for (int i = num_len - 1; i >= 0; i--) {
     if (num[i] != max_base) {
       num[i] = simbolo_do_valor(valor_do_simbolo(num[i]) + 1, base);
@@ -111,27 +113,6 @@ int complemento_de_base(char *num, int num_len, int base) {
   }
   return num_len;
 }
-
-/*
-int complemento_base(char* num, int num_len, int base) {
-  // inverte
-  //printf("ANTES DE INVERTER: %s\n", num);
-  for (int i = 0; i < num_len; i++)
-    num[i] = symbol_from_value(base - 1 - valor_do_simbolo(num[i]), base);
-  //printf("DEPOIS DE INVERTER %s\n", num);
-  // soma 1
-  for (int i = num_len - 1; i >= 0; i--) {
-    if (num[i] != symbol_from_value(base - 1, base)) {
-      num[i] = symbol_from_value(valor_do_simbolo(num[i]) + 1, base);
-      break;
-    } else {
-      num[i] = '0';
-    }
-    //printf("%s\n", num);
-  }
-  return num_len;
-}
-*/
 
 int hexa_para_binario(char* binario, char* hexa, int hexa_len) {
   char bits[5];
@@ -148,23 +129,98 @@ int hexa_para_binario(char* binario, char* hexa, int hexa_len) {
   return i;
 }
 
-int hexa_para_decimal() {
-  
+int base_para_decimal(char* num, int num_len, int base) {
+  int decimal = 0;
+  for (int i = 0; i < num_len; i++) 
+    decimal = base * decimal + valor_do_simbolo(num[i]);
+  return decimal;
 }
 
+int hexa_para_decimal(char* hexa, int hexa_len, int sinalizado) {
+  long decimal = 0;
+  int sinal = 1;
+  if (sinalizado && valor_do_simbolo(hexa[0]) >= 8) {
+    hexa_len = complemento_base(hexa, hexa_len, 16);
+    sinal = -1;
+  }
+  for (int i = 0; i < hexa_len; i++)
+    decimal = 16 * decimal + valor_do_simbolo(hexa[i]);
+  if (sinal == -1)
+    hexa_len = complemento_base(hexa, hexa_len, 16);
+  return sinal * decimal;
+}
+
+int decimal_para_hexa(char* hexa, int decimal) {
+  int hexa_len;
+  if (decimal < 0)
+    hexa_len = int_para_base(hexa, -decimal, 16);
+  else
+    hexa_len = int_para_base(hexa, decimal, 16);
+  hexa_len = completar_zeros(hexa, hexa_len, 8);
+  if (decimal < 0)
+    hexa_len = complemento_base(hexa, hexa_len, 16);
+  return hexa_len;
+}
+
+#define MAX_DEC 18
+
+void write_decimal(int decimal) {
+  char str_num[MAX_DEC];
+  int i = MAX_DEC - 2;
+  str_num[MAX_DEC - 1] = '\n';
+  // negativo
+  if (decimal < 0) {
+    write(STDOUT_FD, "-", 1);
+    decimal *= -1;
+  }
+  // positivo
+  while (decimal > 0) {
+    str_num[i] = '0' + (decimal % 10);
+    decimal /= 10;
+    i--;
+  }
+  write(STDOUT_FD, &str_num[i + 1], MAX_DEC - i);
+}
+
+void write_num(char* num, int num_len, char letra) {
+  int i;
+  write(STDOUT_FD, "0", 1);
+  write(STDOUT_FD, &letra, 1);
+  for (i = 0; num[i] == '0'; i++) ;
+  write(STDOUT_FD, &num[i], num_len + 1 - i);
+}
+
+int inverte_endian(char* hexa, int hexa_len) {
+  char aux;
+  for (int i = 0; i < hexa_len / 2; i += 2) {
+    aux = hexa[i];
+    hexa[i] = hexa[hexa_len - 2 - i];
+    hexa[hexa_len - 2 - i] = aux;
+    aux = hexa[i + 1];
+    hexa[i + 1] = hexa[hexa_len - 1 - i];
+    hexa[hexa_len - 1 - i] = aux;
+  }
+  return hexa_para_decimal(hexa, hexa_len, 0);
+}
+
+int formatar_input_hexa(char* input, int input_len) {
+  if (input[1] == 'x')
+    input_len = remover_prefixo(input, input_len);
+  return completar_zeros(input, input_len, 8);
+}
+
+int extrair_input_decimal(char* input, int input_len) {
+  if (input[0] == '-')
+    return -1 * base_para_decimal(&input[1], input_len - 1, 10);
+  return base_para_decimal(input, input_len, 10);
+}
 
 int main() {
-  char str[33], hexa[11], binario[33];
-
-  int n = read(STDIN_FD, str, 20) - 1;
-
+  char str[33], *hexa, binario[33];
+  int n;
+  /*
   n = remover_prefixo(str, n);
   write(STDOUT_FD, str, n + 1);
-
-  /*
-  char x = '0' + n;
-  write(STDOUT_FD, &x, 1);
-  */
 
   // 00000abc
   n = completar_zeros(str, n, 8);
@@ -188,13 +244,63 @@ int main() {
   write(STDOUT_FD, binario, n + 1);
 
   // fffff544
-  n = complemento_de_base(str, 8, 16);
+  n = complemento_base(str, 8, 16);
   write(STDOUT_FD, str, n + 1);
 
   // 11111111111111111111010101000100
-  n = complemento_de_base(binario, 32, 2);
+  n = complemento_base(binario, 32, 2);
   write(STDOUT_FD, binario, n + 1);
 
+  write_decimal(10);
+
+  write_decimal(123415);
+
+  // -2748
+  int decimal = hexa_para_decimal("fffff544", 8, 1);
+  write_decimal(decimal);
+
+  decimal = hexa_para_decimal("80000000", 8, 1);
+  write_decimal(decimal);
+  
+  // 0xabc
+  write_num("00000abc\n", 8, 'x');
+
+  // 0b101010111100
+  write_num("00000000000000000000101010111100\n", 32, 'b');
+
+  // 0xfffff544
+  n = decimal_para_hexa(str, -2748);
+  write_num(str, n, 'x');
+
+  // 1213617152
+  decimal = inverte_endian("00545648", 8);
+  write_decimal(decimal);
+
+  // 12345
+  decimal = base_para_decimal("12345", 5, 10);
+  write_decimal(decimal);
+  */
+
+  int decimal;
+  int hexa_len;
+  int input_len = read(STDIN_FD, str, 20) - 1;
+  write(STDIN_FD, "\n", 1);
+  if (str[1] == 'x') {
+    hexa_len = formatar_input_hexa(str, input_len);
+    hexa = str;
+    int bin_len = hexa_para_binario(binario, hexa, hexa_len);
+    write_num(binario, bin_len, 'b');
+    write_decimal(hexa_para_decimal(hexa, hexa_len, 1));
+  } else {
+    decimal = extrair_input_decimal(str, input_len);
+    hexa_len = decimal_para_hexa(str, decimal);
+    hexa = str;
+    int bin_len = hexa_para_binario(binario, hexa, hexa_len);
+    write_num(binario, bin_len, 'b');
+    write_decimal(decimal);
+  }
+  write_num(hexa, hexa_len, 'x');
+  write_decimal(inverte_endian(hexa, hexa_len));
 
   return 0;
 }

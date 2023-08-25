@@ -1,8 +1,9 @@
 #include <stdio.h>
 
 int main() {
-    int i;
-    for (i = 0; i < 4; i++)
-        printf("%d\n", i);
-    printf("%d\n", i);
+    int x;
+    
+    printf("%d\n", x);
+    // 00545648
+    // 48565400
 }
