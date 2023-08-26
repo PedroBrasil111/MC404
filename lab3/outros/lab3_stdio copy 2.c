@@ -157,7 +157,8 @@ void print_num(char* str_num, int str_len, char letra) {
 
 int main() {
   char binary[33], hexa[9], input[20];
-  int decimal, hexa_len, bin_len;
+  unsigned int decimal, hexa_len, bin_len;
+  int sinal_dec;
   scanf("%s", input);
   if (input[1] == 'x') {
     formatar_entrada(input, strlen(input));

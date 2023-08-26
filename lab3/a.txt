@@ -1,0 +1,62 @@
+  /*
+  n = remover_prefixo(str, n);
+  write(STDOUT_FD, str, n + 1);
+
+  // 00000abc
+  n = completar_zeros(str, n, 8);
+  write(STDOUT_FD, str, n + 1);
+
+  // 00000000000000000000000000000abc
+  n = completar_zeros(str, n, 32);
+  write(STDOUT_FD, str, n + 1);
+
+  // 1000000
+  n = int_para_base(str, 64, 2);
+  write(STDOUT_FD, str, n + 1);
+
+  // 00000abc
+  n = int_para_base(str, 16 * 16 * 10 + 16 * 11 + 12, 16);
+  n = completar_zeros(str, n, 8);
+  write(STDOUT_FD, str, n + 1);
+  
+  // 00000000000000000000101010111100
+  n = hexa_para_binario(binario, "00000abc", 8);
+  write(STDOUT_FD, binario, n + 1);
+
+  // fffff544
+  n = complemento_base(str, 8, 16);
+  write(STDOUT_FD, str, n + 1);
+
+  // 11111111111111111111010101000100
+  n = complemento_base(binario, 32, 2);
+  write(STDOUT_FD, binario, n + 1);
+
+  write_decimal(10);
+
+  write_decimal(123415);
+
+  // -2748
+  int decimal = hexa_para_decimal("fffff544", 8, 1);
+  write_decimal(decimal);
+
+  decimal = hexa_para_decimal("80000000", 8, 1);
+  write_decimal(decimal);
+  
+  // 0xabc
+  write_num("00000abc\n", 8, 'x');
+
+  // 0b101010111100
+  write_num("00000000000000000000101010111100\n", 32, 'b');
+
+  // 0xfffff544
+  n = decimal_para_hexa(str, -2748);
+  write_num(str, n, 'x');
+
+  // 1213617152
+  decimal = inverte_endian("00545648", 8);
+  write_decimal(decimal);
+
+  // 12345
+  decimal = base_para_decimal("12345", 5, 10);
+  write_decimal(decimal);
+  */

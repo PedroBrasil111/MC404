@@ -45,19 +45,24 @@ void _start() {
 
 #define STDIN_FD  0
 #define STDOUT_FD 1
+#define MAX_DEC 11  // MAX_INT em 32 bits possui 10 caracteres
+#define MAX_BIN 35  // "0b" + 32 bits + "\n"
+#define MAX_HEXA 11 // "0x" + 8 bits + "\n"
 
-char simbolo_do_valor(int value, int base) {
-  if (value >= 0 && value <= 9)
-    return '0' + value;
-  return 'a' + value - 10;
+/* Retorna o caractere que representa o valor */
+char simbolo_do_valor(int valor) {
+  if (valor >= 0 && valor <= 9)
+    return '0' + valor;
+  return 'a' + valor - 10; // no caso, 'a' <= simbolo <= 'f'
 }
 
-int valor_do_simbolo(char symbol) {
-  if (symbol >= '0' && symbol <= '9')
-    return symbol - '0';
-  return symbol - 'a' + 10; 
+/* Retorna o valor representado pelo simbolo */
+int valor_do_simbolo(char simbolo) {
+  if (simbolo >= '0' && simbolo <= '9')
+    return simbolo - '0';
+  return simbolo - 'a' + 10; 
 }
-
+/* Remove os 2 primeiros caracteres da string num, de tamanho num_len e retorna o novo tamanho */
 int remover_prefixo(char* num, int num_len) {
   int i;
   for (i = 2; i < num_len; i++) {
@@ -67,6 +72,8 @@ int remover_prefixo(char* num, int num_len) {
   return i - 2;
 }
 
+/* Completa a string num, de tamnho num_len, com char '0' no inicio
+ * ate ela ter tamanho igual a qtd_bytes, retorna o novo tamanho */
 int completar_zeros(char* num, int num_len, int qtd_bytes) {
   int i;
   num[qtd_bytes] = '\n';
@@ -79,15 +86,19 @@ int completar_zeros(char* num, int num_len, int qtd_bytes) {
   return qtd_bytes;
 }
 
+/* Converte o numero n para sua forma na base passada como argumento
+ * e guarda no vetor str_num como string. Retorna o tamanho desse vetor. */
 int int_para_base(char* str_num, int n, int base) {
   int i = 0, tmp = n, rem;
   char aux;
+  // converte com char menos significativo no comeco
   while (tmp != 0) {
     rem = tmp % base;
-    str_num[i] = simbolo_do_valor(rem, base);
+    str_num[i] = simbolo_do_valor(rem);
     tmp = tmp / base;
     i++;
   }
+  // inverte
   for (int j = 0; j < i / 2; j++) {
     aux = str_num[j];
     str_num[j] = str_num[i - 1 - j];
@@ -97,15 +108,17 @@ int int_para_base(char* str_num, int n, int base) {
   return i;
 }
 
+/* Realiza o complemento de base do numero na forma de string no vetor num,
+ * de tamanho num_len, na base indicada, e retorna o novo tamanho da string. */
 int complemento_base(char *num, int num_len, int base) {
-  int max_base = simbolo_do_valor(base - 1, base);
+  int max_base = simbolo_do_valor(base - 1);
   // inverte
   for (int i = 0; i < num_len; i++)
-    num[i] = simbolo_do_valor(base - 1 - valor_do_simbolo(num[i]), base);
+    num[i] = simbolo_do_valor(base - 1 - valor_do_simbolo(num[i]));
   // soma 1
   for (int i = num_len - 1; i >= 0; i--) {
     if (num[i] != max_base) {
-      num[i] = simbolo_do_valor(valor_do_simbolo(num[i]) + 1, base);
+      num[i] = simbolo_do_valor(valor_do_simbolo(num[i]) + 1);
       break;
     } else {
       num[i] = '0';
@@ -114,14 +127,18 @@ int complemento_base(char *num, int num_len, int base) {
   return num_len;
 }
 
+/* Converte o numero na forma de string em hexa, de tamanho hexa_len,
+ * para binario e retorna o tamanho do binario. */
 int hexa_para_binario(char* binario, char* hexa, int hexa_len) {
   char bits[5];
   int i = 0, valor, num_bits;
   for (int j = 0; j < hexa_len; j++) {
     valor = valor_do_simbolo(hexa[j]);
     num_bits = int_para_base(bits, valor, 2);
+    // completa com '0' a esquerda
     for (int k = 0; k < 4 - num_bits; k++)
       binario[i++] = '0';
+    // escreve o numero binario na sequencia
     for (int k = 0; k < num_bits; k++)
       binario[i++] = bits[k];
   }
@@ -129,59 +146,97 @@ int hexa_para_binario(char* binario, char* hexa, int hexa_len) {
   return i;
 }
 
-int base_para_decimal(char* num, int num_len, int base) {
-  int decimal = 0;
+/* Converte o numero na forma de string no vetor num, de tamanho num_len,
+ * para decimal, de acordo com a base indicada. */
+unsigned int base_para_decimal(char* num, int num_len, int base) {
+  int unsigned decimal = 0; // unsigned para evitar overflow
   for (int i = 0; i < num_len; i++) 
     decimal = base * decimal + valor_do_simbolo(num[i]);
   return decimal;
 }
 
-int hexa_para_decimal(char* hexa, int hexa_len, int sinalizado) {
-  long decimal = 0;
-  int sinal = 1;
+/* Converte o numero na base 16 em formato de string no vetor hexa, de tamanho hexa_len,
+ * para a base decimal e o retorna. Guarda o sinal do numero no endereco sinal.
+ * Se sinalizado == 1, considera representacao com sinal. Caso contrario, sem sinal. */
+unsigned int hexa_para_decimal(char* hexa, int* sinal, int hexa_len, int sinalizado) {
+  unsigned int decimal = 0;
+  *sinal = 1;
+  // faz complemento de base antes se hexa for negativo
   if (sinalizado && valor_do_simbolo(hexa[0]) >= 8) {
     hexa_len = complemento_base(hexa, hexa_len, 16);
-    sinal = -1;
+    *sinal = -1;
   }
-  for (int i = 0; i < hexa_len; i++)
-    decimal = 16 * decimal + valor_do_simbolo(hexa[i]);
-  if (sinal == -1)
+  decimal = base_para_decimal(hexa, hexa_len, 16);
+  // retorna hexa ao valor original
+  if (*sinal == -1)
     hexa_len = complemento_base(hexa, hexa_len, 16);
-  return sinal * decimal;
+  return decimal;
 }
 
-int decimal_para_hexa(char* hexa, int decimal) {
-  int hexa_len;
-  if (decimal < 0)
-    hexa_len = int_para_base(hexa, -decimal, 16);
-  else
-    hexa_len = int_para_base(hexa, decimal, 16);
+/* Converte o numero decimal com sinal indicado para a base 16,
+ * e guarda o resultado em formato de string no vetor hex. Retorna o tamanho do vetor. */
+int decimal_para_hexa(char* hexa, unsigned int decimal, int sinal) {
+  int hexa_len = int_para_base(hexa, decimal, 16); // converte sem sinal
   hexa_len = completar_zeros(hexa, hexa_len, 8);
-  if (decimal < 0)
-    hexa_len = complemento_base(hexa, hexa_len, 16);
+  if (sinal < 0) // negativo
+    hexa_len = complemento_base(hexa, hexa_len, 16); 
   return hexa_len;
 }
 
-#define MAX_DEC 18
+// padrao de comentario trocado por conta da pressa
 
-void write_decimal(int decimal) {
-  char str_num[MAX_DEC];
-  int i = MAX_DEC - 2;
-  str_num[MAX_DEC - 1] = '\n';
-  // negativo
-  if (decimal < 0) {
-    write(STDOUT_FD, "-", 1);
-    decimal *= -1;
+/*
+ * Inverte o endian de um numero hexadecimal e retorna o equivalente em decimal
+ * - hexa: vetor que guarda a string do numero hexadecimal
+ * - hexa_len: tamanho de hexa
+ * - sinal: endereco para o sinal do decimal
+ */
+int inverte_endian(char* hexa, int hexa_len, int* sinal) {
+  char aux;
+  for (int i = 0; i < hexa_len / 2; i += 2) {
+    // inverte [0] e [1] com [6] e [7], respectivamente
+    aux = hexa[i];
+    hexa[i] = hexa[hexa_len - 2 - i];
+    hexa[hexa_len - 2 - i] = aux;
+    // inverte [2] e [3] com [4] e [5], respec.
+    aux = hexa[i + 1];
+    hexa[i + 1] = hexa[hexa_len - 1 - i];
+    hexa[hexa_len - 1 - i] = aux;
   }
-  // positivo
-  while (decimal > 0) {
-    str_num[i] = '0' + (decimal % 10);
-    decimal /= 10;
-    i--;
-  }
-  write(STDOUT_FD, &str_num[i + 1], MAX_DEC - i);
+  return hexa_para_decimal(hexa, sinal, hexa_len, 0); // 0 para indicar unsigned
 }
 
+/*
+ * Formata o numero hexadecimal de uma string, retorna o tamanho da string
+ * - input: vetor que guarda a string
+ * - input_len: tamanho de input
+ */
+int formatar_input_hexa(char* input, int input_len) {
+  if (input[1] == 'x')
+    input_len = remover_prefixo(input, input_len); // remove o "0x"
+  return completar_zeros(input, input_len, 8); // adiciona 0's ate ter 8 caracteres
+}
+
+/*
+ * Extrai e retorna o numero decimal de uma string
+ * - input: vetor que guarda a string
+ * - sinal: endereco para o sinal do decimal
+ * - input_len: tamanho de input
+ */
+unsigned int extrair_input_decimal(char* input, int* sinal, int input_len) {
+  if (input[0] == '-') {
+    *sinal = -1;
+    return base_para_decimal(&input[1], input_len - 1, 10);
+  }
+  return base_para_decimal(input, input_len, 10);
+}
+
+/* 
+ * Imprime um numero (em string) no formato '0{letra}num'
+ * - num: vetor onde esta a string
+ * - num_len: tamanho do vetor
+ * - letra: letra que deve ser impressa para indicar a base
+ */
 void write_num(char* num, int num_len, char letra) {
   int i;
   write(STDOUT_FD, "0", 1);
@@ -190,118 +245,50 @@ void write_num(char* num, int num_len, char letra) {
   write(STDOUT_FD, &num[i], num_len + 1 - i);
 }
 
-int inverte_endian(char* hexa, int hexa_len) {
-  char aux;
-  for (int i = 0; i < hexa_len / 2; i += 2) {
-    aux = hexa[i];
-    hexa[i] = hexa[hexa_len - 2 - i];
-    hexa[hexa_len - 2 - i] = aux;
-    aux = hexa[i + 1];
-    hexa[i + 1] = hexa[hexa_len - 1 - i];
-    hexa[hexa_len - 1 - i] = aux;
+/* 
+ * Imprime um numero inteiro
+ * - decimal: o numero a ser impresso
+ * - sinal: o sinal do numero (-1 ou +1)
+ */
+void write_decimal(unsigned int decimal, int sinal) {
+  char str_num[MAX_DEC];
+  int i = MAX_DEC - 2;
+  str_num[MAX_DEC - 1] = '\n';
+  // negativo
+  if (sinal < 0)
+    write(STDOUT_FD, "-", 1);
+  // positivo
+  while (decimal > 0) {
+    str_num[i] = '0' + (decimal % 10);
+    decimal /= 10;
+    i--;
   }
-  return hexa_para_decimal(hexa, hexa_len, 0);
-}
-
-int formatar_input_hexa(char* input, int input_len) {
-  if (input[1] == 'x')
-    input_len = remover_prefixo(input, input_len);
-  return completar_zeros(input, input_len, 8);
-}
-
-int extrair_input_decimal(char* input, int input_len) {
-  if (input[0] == '-')
-    return -1 * base_para_decimal(&input[1], input_len - 1, 10);
-  return base_para_decimal(input, input_len, 10);
+  write(STDOUT_FD, &str_num[i + 1], MAX_DEC - i - 1);
 }
 
 int main() {
-  char str[33], *hexa, binario[33];
-  int n;
-  /*
-  n = remover_prefixo(str, n);
-  write(STDOUT_FD, str, n + 1);
-
-  // 00000abc
-  n = completar_zeros(str, n, 8);
-  write(STDOUT_FD, str, n + 1);
-
-  // 00000000000000000000000000000abc
-  n = completar_zeros(str, n, 32);
-  write(STDOUT_FD, str, n + 1);
-
-  // 1000000
-  n = int_para_base(str, 64, 2);
-  write(STDOUT_FD, str, n + 1);
-
-  // 00000abc
-  n = int_para_base(str, 16 * 16 * 10 + 16 * 11 + 12, 16);
-  n = completar_zeros(str, n, 8);
-  write(STDOUT_FD, str, n + 1);
-  
-  // 00000000000000000000101010111100
-  n = hexa_para_binario(binario, "00000abc", 8);
-  write(STDOUT_FD, binario, n + 1);
-
-  // fffff544
-  n = complemento_base(str, 8, 16);
-  write(STDOUT_FD, str, n + 1);
-
-  // 11111111111111111111010101000100
-  n = complemento_base(binario, 32, 2);
-  write(STDOUT_FD, binario, n + 1);
-
-  write_decimal(10);
-
-  write_decimal(123415);
-
-  // -2748
-  int decimal = hexa_para_decimal("fffff544", 8, 1);
-  write_decimal(decimal);
-
-  decimal = hexa_para_decimal("80000000", 8, 1);
-  write_decimal(decimal);
-  
-  // 0xabc
-  write_num("00000abc\n", 8, 'x');
-
-  // 0b101010111100
-  write_num("00000000000000000000101010111100\n", 32, 'b');
-
-  // 0xfffff544
-  n = decimal_para_hexa(str, -2748);
-  write_num(str, n, 'x');
-
-  // 1213617152
-  decimal = inverte_endian("00545648", 8);
-  write_decimal(decimal);
-
-  // 12345
-  decimal = base_para_decimal("12345", 5, 10);
-  write_decimal(decimal);
-  */
-
-  int decimal;
-  int hexa_len;
-  int input_len = read(STDIN_FD, str, 20) - 1;
+  char input[MAX_HEXA], *hexa, binario[MAX_BIN]; // representacoes em string dos numeros
+  int sinal, hexa_len, input_len, bin_len;
+  unsigned int decimal; // unsigned para evitar overflow, sinal guardado separadamente
+  input_len = read(STDIN_FD, input, 20) - 1;
   write(STDIN_FD, "\n", 1);
-  if (str[1] == 'x') {
-    hexa_len = formatar_input_hexa(str, input_len);
-    hexa = str;
-    int bin_len = hexa_para_binario(binario, hexa, hexa_len);
-    write_num(binario, bin_len, 'b');
-    write_decimal(hexa_para_decimal(hexa, hexa_len, 1));
+  // Input hexadecimal
+  if (input[1] == 'x') {
+    hexa_len = formatar_input_hexa(input, input_len);
+    hexa = input;
+    bin_len = hexa_para_binario(binario, hexa, hexa_len);
+    decimal = hexa_para_decimal(hexa, &sinal, hexa_len, 1);
+  // Input decimal
   } else {
-    decimal = extrair_input_decimal(str, input_len);
-    hexa_len = decimal_para_hexa(str, decimal);
-    hexa = str;
-    int bin_len = hexa_para_binario(binario, hexa, hexa_len);
-    write_num(binario, bin_len, 'b');
-    write_decimal(decimal);
+    decimal = extrair_input_decimal(input, &sinal, input_len); // transforma em int
+    hexa_len = decimal_para_hexa(input, decimal, sinal); // converte em hexa e guarda em input
+    hexa = input;
+    bin_len = hexa_para_binario(binario, hexa, hexa_len);
   }
-  write_num(hexa, hexa_len, 'x');
-  write_decimal(inverte_endian(hexa, hexa_len));
-
+  write_num(binario, bin_len, 'b'); // impressao do binario
+  write_decimal(decimal, sinal); // impressao do decimal
+  write_num(hexa, hexa_len, 'x'); // impressao do hexadecimal
+  decimal = inverte_endian(hexa, hexa_len, &sinal);
+  write_decimal(decimal, sinal); // impressao com endianness invertido
   return 0;
 }
-
