@@ -1,9 +1,6 @@
 #include <stdio.h>
 
 int main() {
-    int x;
-    
+    int x = 0x9;
     printf("%d\n", x);
-    // 00545648
-    // 48565400
 }
