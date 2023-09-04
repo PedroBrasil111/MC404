@@ -76,6 +76,7 @@ int mask_bits(int bits) {
   return mask;
 }
 
+/* Faz o packing do input */
 void pack(int input, int start_bit, int end_bit, int *val) {
   int mask = mask_bits(end_bit - start_bit);
   input &= mask; // sobram os bits desejados 

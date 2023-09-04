@@ -1,0 +1,190 @@
+----------- I ----------
+
+Input: jalr x1, -32(x9)
+ Expected: 0xFE0480E7
+ Result: 0x7E0480E7
+
+--------- U ---------
+
+Input: lui x2, 873571
+ Expected: 0xD5463137
+ Result: 0x00000037
+
+Input: auipc x20, 965144
+ Expected: 0xEBA18A17
+ Result: 0x00000017
+
+-------- J -------
+
+Input: jal x9, 213296
+ Expected: 0x130344EF
+ Result: 0x0000006F
+
+--------- B ---------
+
+Input: beq x30, x23, -654
+ Expected: 0xD77F09E3
+ Result: 0x00000063
+
+Input: bne x30, x13, -4070
+ Expected: 0x80DF1D63
+ Result: 0x00000063
+
+Input: blt x12, x20, -244
+ Expected: 0xF14646E3
+ Result: 0x00000063
+
+Input: bge x31, x6, -2286
+ Expected: 0xF06FD963
+ Result: 0x00000063
+
+Input: bltu x12, x1, 1360
+ Expected: 0x54166863
+ Result: 0x00000063
+
+Input: bgeu x20, x14, 624
+ Expected: 0x26EA7863
+ Result: 0x00000063
+
+--------- I --------
+
+Input: lb x29, -926(x14)
+ Expected: 0xC6270E83
+ Result: 0x46270E83
+
+Input: jalr x30, 1095(x4)
+ Expected: 0x44720F67
+ Result: 0x44720F67
+
+Input: lh x11, -1212(x11)
+ Expected: 0xB4459583
+ Result: 0x34459583
+
+Input: lw x16, 108(x5)
+ Expected: 0x06C2A803
+ Result: 0x06C2A803
+
+Input: lbu x19, -1800(x17)
+ Expected: 0x8F88C983
+ Result: 0x0F88C983
+
+Input: lhu x14, -431(x16)
+ Expected: 0xE5185703
+ Result: 0x65185703
+
+--------- S --------
+
+Input: sb x17, -908(x29)
+ Expected: 0xC71E8A23
+ Result: 0x7F3E8A23
+
+Input: sh x6, -1108(x25)
+ Expected: 0xBA6C9623
+ Result: 0x7DFC9623
+
+Input: sw x9, -1113(x3)
+ Expected: 0xBA91A3A3
+ Result: 0x7DD1A3A3
+
+---------- I -------------
+
+Input: addi x19, x14, 1445
+ Expected: 0x5A570993
+ Result: 0x5A570993
+
+Input: slti x17, x26, 94
+ Expected: 0x05ED2893
+ Result: 0x05ED2893
+
+Input: sltiu x16, x21, -61
+ Expected: 0xFC3AB813
+ Result: 0x7C3AB813
+
+Input: xori x15, x13, -1505
+ Expected: 0xA1F6C793
+ Result: 0x21F6C793
+
+Input: ori x19, x23, 1570
+ Expected: 0x622BE993
+ Result: 0x622BE993
+
+Input: andi x25, x4, -755
+ Expected: 0xD0D27C93
+ Result: 0x50D27C93
+
+Input: slli x31, x5, -765
+ Expected: 0x00329F93
+ Result: 0x7E329F93
+
+Input: srli x18, x2, -1876
+ Expected: 0x00C15913
+ Result: 0x7EC15913
+
+Input: srai x10, x20, -1559
+ Expected: 0x409A5513
+ Result: 0x3E9A5513
+
+------- R ---------
+
+Input: add x25, x6, x27
+ Expected: 0x01B30CB3
+ Result: 0x01B30CB3
+
+Input: sub x13, x5, x1
+ Expected: 0x401286B3
+ Result: 0x401286B3
+
+Input: sll x20, x19, x1
+ Expected: 0x00199A33
+ Result: 0x00199A33
+
+Input: slt x9, x20, x3
+ Expected: 0x003A24B3
+ Result: 0x003A24B3
+
+Input: sltu x30, x21, x16
+ Expected: 0x010ABF33
+ Result: 0x010ABF33
+
+Input: xor x13, x17, x7
+ Expected: 0x0078C6B3
+ Result: 0x0078C6B3
+
+Input: srl x8, x26, x9
+ Expected: 0x009D5433
+ Result: 0x009D5433
+
+Input: sra x30, x25, x9
+ Expected: 0x409CDF33
+ Result: 0x409CDF33
+
+Input: or x6, x19, x9
+ Expected: 0x0099E333
+ Result: 0x0099E333
+
+Input: and x24, x1, x14
+ Expected: 0x00E0FC33
+ Result: 0x00E0FC33
+
+Input: and x31, x20, x25
+ Expected: 0x019A7FB3
+ Result: 0x019A7FB3
+
+---------- I zoado -----------
+Input: slli x10, x10, -1252
+ Expected: 0x01C51513
+ Result: 0xFFC51513
+
+Input: srli x9, x5, -1139
+ Expected: 0x00D2D493
+ Result: 0xFED2D493
+
+Input: srai x16, x22, -412
+ Expected: 0x404B5813
+ Result: 0x3E4B5813
+
+----------- ??????? -----------
+
+Input: slti x12, x13, -1
+ Expected: 0xFFF6A613
+ Result: 0x01F6A613
