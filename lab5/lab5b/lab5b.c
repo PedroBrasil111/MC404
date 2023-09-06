@@ -353,21 +353,67 @@ void get_inst_data(char inst[], InstData *data){
 
 /* Retorna a mascara com o numero de bits */
 int mask_bits(int bits) {
-  // 0b000111...111
-  //      '---v---'
-  //      bits vezes
-  // '0' (32 - bits) vezes antes da sequencia de '1'
-  int mask = 0;
-  for (int j = 0; j < bits; j++)
-    mask = (mask << 1) + 1;
-  return mask;
+    // 0b000111...111
+    //      '---v---'
+    //      bits vezes
+    // '0' (32 - bits) vezes antes da sequencia de '1'
+    int mask = 0;
+    for (int j = 0; j < bits; j++)
+        mask = (mask << 1) + 1;
+    return mask;
 }
 
 /* Faz o packing do input */
 void pack(int input, int start_bit, int end_bit, int *val) {
-  int mask = mask_bits(end_bit - start_bit);
-  input &= mask; // sobram os bits desejados 
-  *val |= (input << start_bit); // desloca e faz a uniao
+    int mask = mask_bits(end_bit - start_bit);
+    input &= mask; // sobram os bits desejados 
+    *val |= (input << start_bit); // desloca e faz a uniao
+}
+
+void convert_instruction_R(InstData data, int *binary) {
+    pack(data.rd, 7, 12, binary);
+    pack(data.funct3, 12, 15, binary);
+    pack(data.rs1, 15, 20, binary);
+    pack(data.rs2, 20, 25, binary);
+    pack(data.funct7, 25, 32, binary);
+}
+
+void convert_instruction_I(InstData data, int *binary) {
+    pack(data.rd, 7, 12, binary);
+    pack(data.funct3, 12, 15, binary);
+    pack(data.rs1, 15, 20, binary);
+    pack(data.imm, 20, 32, binary);
+}
+
+void convert_instruction_S(InstData data, int *binary) {
+    pack(data.imm, 7, 12, binary);
+    pack(data.funct3, 12, 15, binary);
+    pack(data.rs1, 15, 20, binary);
+    pack(data.rs2, 20, 25, binary);
+    pack(data.imm >> 5, 25, 32, binary);
+}
+
+void convert_instruction_B(InstData data, int *binary) {
+    pack(data.imm >> 11, 7, 8, binary);
+    pack(data.imm >> 1, 8, 12, binary);
+    pack(data.funct3, 12, 15, binary);
+    pack(data.rs1, 15, 20, binary);
+    pack(data.rs2, 20, 25, binary);
+    pack(data.imm >> 5, 25, 31, binary);
+    pack(data.imm >> 12, 31, 32, binary);
+}
+
+void convert_instruction_U(InstData data, int *binary) {
+    pack(data.rd, 7, 12, binary);
+    pack(data.imm, 12, 32, binary);
+}
+
+void convert_instruction_J(InstData data, int *binary) {
+    pack(data.rd, 7, 12, binary);
+    pack(data.imm >> 12, 12, 20, binary);
+    pack(data.imm >> 11, 20, 21, binary);
+    pack(data.imm >> 1, 21, 31, binary);
+    pack(data.imm >> 20, 31, 32, binary);
 }
 
 int main() {
@@ -379,44 +425,22 @@ int main() {
     pack(data.opcode, 0, 7, &binary);
     switch (data.type) {
         case R:
-            pack(data.rd, 7, 12, &binary);
-            pack(data.funct3, 12, 15, &binary);
-            pack(data.rs1, 15, 20, &binary);
-            pack(data.rs2, 20, 25, &binary);
-            pack(data.funct7, 25, 32, &binary);
+            convert_instruction_R(data, &binary);
             break;
         case I:
-            pack(data.rd, 7, 12, &binary);
-            pack(data.funct3, 12, 15, &binary);
-            pack(data.rs1, 15, 20, &binary);
-            pack(data.imm, 20, 32, &binary);
+            convert_instruction_I(data, &binary);
             break;
         case S:
-            pack(data.imm, 7, 12, &binary);
-            pack(data.funct3, 12, 15, &binary);
-            pack(data.rs1, 15, 20, &binary);
-            pack(data.rs2, 20, 25, &binary);
-            pack(data.imm >> 5, 25, 32, &binary);
+            convert_instruction_S(data, &binary);
             break;
         case B:
-            pack(data.imm >> 11, 7, 8, &binary);
-            pack(data.imm >> 1, 8, 12, &binary);
-            pack(data.funct3, 12, 15, &binary);
-            pack(data.rs1, 15, 20, &binary);
-            pack(data.rs2, 20, 25, &binary);
-            pack(data.imm >> 5, 25, 31, &binary);
-            pack(data.imm >> 12, 31, 32, &binary);
+            convert_instruction_B(data, &binary);
             break;
         case U:
-            pack(data.rd, 7, 12, &binary);
-            pack(data.imm, 12, 32, &binary);
+            convert_instruction_U(data, &binary);
             break;
         case J:
-            pack(data.rd, 7, 12, &binary);
-            pack(data.imm >> 12, 12, 20, &binary);
-            pack(data.imm >> 11, 20, 21, &binary);
-            pack(data.imm >> 1, 21, 31, &binary);
-            pack(data.imm >> 20, 31, 32, &binary);
+            convert_instruction_J(data, &binary);
             break;
     }
     hex_code(binary);
