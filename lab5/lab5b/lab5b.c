@@ -370,7 +370,7 @@ void pack(int input, int start_bit, int end_bit, int *val) {
     *val |= (input << start_bit); // desloca e faz a uniao
 }
 
-void convert_instruction_R(InstData data, int *binary) {
+void pack_R_type(InstData data, int *binary) {
     pack(data.rd, 7, 12, binary);
     pack(data.funct3, 12, 15, binary);
     pack(data.rs1, 15, 20, binary);
@@ -378,14 +378,14 @@ void convert_instruction_R(InstData data, int *binary) {
     pack(data.funct7, 25, 32, binary);
 }
 
-void convert_instruction_I(InstData data, int *binary) {
+void pack_I_type(InstData data, int *binary) {
     pack(data.rd, 7, 12, binary);
     pack(data.funct3, 12, 15, binary);
     pack(data.rs1, 15, 20, binary);
     pack(data.imm, 20, 32, binary);
 }
 
-void convert_instruction_S(InstData data, int *binary) {
+void pack_S_type(InstData data, int *binary) {
     pack(data.imm, 7, 12, binary);
     pack(data.funct3, 12, 15, binary);
     pack(data.rs1, 15, 20, binary);
@@ -393,7 +393,7 @@ void convert_instruction_S(InstData data, int *binary) {
     pack(data.imm >> 5, 25, 32, binary);
 }
 
-void convert_instruction_B(InstData data, int *binary) {
+void pack_B_type(InstData data, int *binary) {
     pack(data.imm >> 11, 7, 8, binary);
     pack(data.imm >> 1, 8, 12, binary);
     pack(data.funct3, 12, 15, binary);
@@ -403,12 +403,12 @@ void convert_instruction_B(InstData data, int *binary) {
     pack(data.imm >> 12, 31, 32, binary);
 }
 
-void convert_instruction_U(InstData data, int *binary) {
+void pack_U_type(InstData data, int *binary) {
     pack(data.rd, 7, 12, binary);
     pack(data.imm, 12, 32, binary);
 }
 
-void convert_instruction_J(InstData data, int *binary) {
+void pack_J_type(InstData data, int *binary) {
     pack(data.rd, 7, 12, binary);
     pack(data.imm >> 12, 12, 20, binary);
     pack(data.imm >> 11, 20, 21, binary);
@@ -425,22 +425,22 @@ int main() {
     pack(data.opcode, 0, 7, &binary);
     switch (data.type) {
         case R:
-            convert_instruction_R(data, &binary);
+            pack_R_type(data, &binary);
             break;
         case I:
-            convert_instruction_I(data, &binary);
+            pack_I_type(data, &binary);
             break;
         case S:
-            convert_instruction_S(data, &binary);
+            pack_S_type(data, &binary);
             break;
         case B:
-            convert_instruction_B(data, &binary);
+            pack_B_type(data, &binary);
             break;
         case U:
-            convert_instruction_U(data, &binary);
+            pack_U_type(data, &binary);
             break;
         case J:
-            convert_instruction_J(data, &binary);
+            pack_J_type(data, &binary);
             break;
     }
     hex_code(binary);
