@@ -114,7 +114,7 @@ _start:
         beq a0, a1, 1f    # if a0 == a1 then end loop
         jal atoi
         jal babylonian_sqrt
-        jal ibtoa
+        jal itoa
         addi a0, a0, 1
         j 1b
     1:
