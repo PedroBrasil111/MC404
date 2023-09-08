@@ -47,12 +47,12 @@ atoi:
         addi t3, t3, -1 # subtracts 1 from counter
         j 1b
     1:
-        la t2, sqrts # t2 stores the memory word in which the number will be stored
-        slli t1, s0, 2 # t1 = s0 * 4
-        add t2, t2, t1 # t2 = t2 + t1
-        sw s1, (t2) # stores the number in t2
-        mv a0, s0
-        ret
+    la t2, sqrts # t2 stores the memory word in which the number will be stored
+    slli t1, s0, 2 # t1 = s0 * 4
+    add t2, t2, t1 # t2 = t2 + t1
+    sw s1, (t2) # stores the number in t2
+    mv a0, s0
+    ret
 
 itoa:
     mv s0, a0
@@ -76,8 +76,8 @@ itoa:
         divu s1, s1, t3 # divides s1 by 10 (removes last digit)
         j 1b
     1:
-        mv a0, s0
-        ret
+    mv a0, s0
+    ret
 
 # k = y/2, k' = (k + y/k)/2
 babylonian_sqrt:
