@@ -1,7 +1,7 @@
 .bss
-buffer: .skip 0x14    # buffer (20 bytes)
+buffer: .skip 0x20     # buffer (32 bytes)
 coordinates: .skip 0x8 # 2 words for storing the inputted coordinates (8 bytes)
-time: .skip 0x10    # 4 words for storing the inputted times (16 bytes)
+time: .skip 0x10       # 4 words for storing the inputted times (16 bytes)
 my_coordinates: .skip 0x8 # output
 
 .text
@@ -10,7 +10,7 @@ my_coordinates: .skip 0x8 # output
 read:
     li a0, 0      # file descriptor = 0 (stdin)
     la a1, buffer #  buffer to write the data
-    li a2, 20     # size
+    li a2, 32     # size
     li a7, 63     # syscall read (63)
     ecall
     ret
@@ -37,7 +37,7 @@ exit:
 # converts from string to integer, and stores it in sqrts
 # parameters:
 atoi:
-    la s0, buffer   # s0 is the address of the buffer
+    mv s0, a2       # s0 is the address of the buffer
     mv s1, a0       # s1 is the address of the word vector
     li s2, 0        # s2 is the number being calculated
     li t0, 1        # t0 is the sign of the number
@@ -86,8 +86,7 @@ itoa:
         li t2, 4     # counter for loop 2
         bgez s2, positive
         # number is negative:
-        li t5, -1
-        mul s2, s2, t5
+        sub s2, zero, s2 # a2 is now the absolute value
         li t0, '-'
         sb t0, (s0)
         j 2f
@@ -196,41 +195,41 @@ compute_coordinates:
     # computing if it's x or -x by checking which makes the difference
     # dC^2 - y^2 - (x-X_C)^2 closer to zero in absolute value
     lw t2, 8(s0)      # t2 = dC^2
-    sub t2, t2, a2    # t2 -= y^2
+    sub t2, t2, a2    # t2 = dC^2 - y^2
     lw t1, 4(s1)      # t1 = X_C
     sub t1, a3, t1    # t1 = x - X_C
     mul t1, t1, t1
-    sub t2, t2, t1    # t2 is the difference for positive x
-    mv a0, t2
-    mv t6, ra
-    jal absolute_value
-    mv ra, t6
-    mv t2, a1         # t2 is now the absolute value
-    lw t1, 4(s1)      # t1 = X_C
-    sub t1, zero, t1  # t1 = - X_C
-    sub t1, t1, a3    # t1 = - x - X_C
-    mul t1, t1, t1
-    sub t1, t1, t1    # t1 is the difference for negative x
+    sub t1, t2, t1    # t1 is the difference for positive x
     mv a0, t1
     mv t6, ra
     jal absolute_value
     mv ra, t6
     mv t1, a1         # t1 is now the absolute value
-    mv t0, a3         # t0 = x
-    bgt t1, t2, 1f    # if positive x, do nothing
+    lw t3, 4(s1)
+    sub t3, zero, t3 # t3 = -X_C
+    sub t3, t3, a3 # t3 = -x - X_C
+    mul t3, t3, t3
+    sub t2, t2, t3 # t2 is the difference for negative x
+    mv a0, t2
+    mv t6, ra
+    jal absolute_value
+    mv ra, t6
+    mv t2, a1         # t2 is now the absolute value
+    bge t2, t1, 1f    # if positive x, do nothing
     # negative x
-    sub t0, zero, t0
+    sub a3, zero, a3
     1:
-    sw t0, (s2)       # store x
+    sw a3, (s2)       # store x
     ret
 
 _start:
     jal read
     la a0, coordinates
+    la a2, buffer
     jal atoi
 
-    jal read
     la a0, time
+    addi a2, a2, 12
     jal atoi
 
     jal compute_square_distances
