@@ -37,6 +37,7 @@ exit:
 encode:
     la a1, output
     la t0, input
+
     lb t1, 0(t0)
     sb t1, 2(a1)
     lb t2, 1(t0)
