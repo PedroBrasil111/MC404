@@ -187,9 +187,9 @@ compute_coordinates:
     mul a2, a2, a2       # a2 = y^2
     lw t2, (s0)          # t2 = dA^2
     sub a0, t2, a2       # a0 = dA^2 - y^2
-    mv t6, ra
+    mv s5, ra
     jal babylonian_sqrt  # a1 = x = sqrt(a0)
-    mv ra, t6
+    mv ra, s5
     mv a3, a1            # a3 = x
 
     # computing if it's x or -x by checking which makes the difference
@@ -201,9 +201,9 @@ compute_coordinates:
     mul t1, t1, t1
     sub t1, t2, t1    # t1 is the difference for positive x
     mv a0, t1
-    mv t6, ra
+    mv s5, ra
     jal absolute_value
-    mv ra, t6
+    mv ra, s5
     mv t1, a1         # t1 is now the absolute value
     lw t3, 4(s1)
     sub t3, zero, t3 # t3 = -X_C
@@ -211,9 +211,9 @@ compute_coordinates:
     mul t3, t3, t3
     sub t2, t2, t3 # t2 is the difference for negative x
     mv a0, t2
-    mv t6, ra
+    mv s5, ra
     jal absolute_value
-    mv ra, t6
+    mv ra, s5
     mv t2, a1         # t2 is now the absolute value
     bge t2, t1, 1f    # if positive x, do nothing
     # negative x
