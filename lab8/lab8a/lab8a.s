@@ -1,10 +1,7 @@
 .bss
-buffer: .skip 262159 # 512 * 512 + 15 bytes
+buffer: .skip 113 # 13 (header) + 100 (color matrix) bytes
 width: .skip 2  # halfword (max 512)
 height: .skip 2 # halfword (max 512)
-
-.data
-max_val: .half 255
 
 .text
 .globl _start
@@ -24,72 +21,74 @@ open:
     ecall
     ret
 
+# paramaters: a0 - address of the string, a1 - address where the number will be stored
+atoi:
+    li t0, ' ' # stop condition
+    li t3, '\n' # 2nd stop condition
+    li t1, 10
+    li a2, 0 # holds number being computed
+    1:
+        lbu t2, (a0) # get current digit
+        beq t2, t0, 1f
+        beq t2, t3, 1f
+        addi t2, t2, -'0' # convert to number
+        mul a2, a2, t1 # multiply by 10
+        add a2, a2, t2 # add digit
+        addi a0, a0, 1
+        j 1b
+    1:
+    sh a2, (a1) # stores the number
+    ret
+
 # parameters: a0 - buffer address
 # returns the address in which the colors start in the buffer
-set_width_height:
-    addi a0, a0, 2 # skip "P5" from the header
-    li t1, 0   # stop condition
-    li a1, 0   # stores the number
-    la a2, width
-    j 1f
-    store:
-    sh a1, (a2) # stores width first then height
-    li a1, 0 # reset a1
-    la a2, height
-    addi t1, t1, 1
-    1:
-        li t0, 2 # stop condition for getting the numbers
-        beq t1, t0, 1f
-        addi a0, a0, 1
-        lbu t2, (a0) # t2 is the digit at the position of a0
-        li t0, ' ' # stop condition for current number being computed
-        beq t0, t2, store
-        # multiply number by 10 and add digit
-        li t0, 10
-        mul a1, a1, t0
-        addi t2, t2, -'0'
-        add a1, a1, t2
-        j 1b
-    1:
-    li t0, '\n'
-    # stops when the digit stored at a0 is '\n'
-    1:
-        addi a0, a0, 1
-        lbu t2, (a0)
-        beq t2, t0, 1f
-        j 1b
-    1:
-    addi a0, a0, 1
+extract_header:
+    # storing ra and s0
+    addi sp, sp, -4
+    sw ra, (sp)
+    addi sp, sp, -4
+    sw s0, (sp)
+    # getting width and height
+    mv s0, a0
+    addi a0, a0, 3 # width starts on 4th byte
+    la a1, width
+    jal atoi
+    mv a0, s0
+    addi a0, a0, 6 # since on all test cases width is length 2, height starts on 5th byte
+    la a1, height
+    jal atoi
+    # restoring ra and s0
+    lw s0, (sp)
+    addi sp, sp, 4
+    lw ra, (sp)
+    addi sp, sp, 4
     ret
 
-# parameters: a0 - file descriptor, a1 - buffer address, a2 - how many bytes will be read
+# parameters: a0 - file descriptor
 read_pgm:
+    la a1, buffer
+    li a2, 113
     li a7, 63         # syscall read
-    ecall
-    ret
-
-write:
-    li a0, 1 # 1 = stdout fd
-    li a2, 30 # size
-    li a7, 64 # syscall write
     ecall
     ret
 
 # parameters: a0 - address of the buffer
 show_image:
     mv a3, a0 # a3 is the address of the number being shown
-    li a0, 0 # x coordinate
-    lhu t0, height
-    lhu t1, width
+    li a1, 0 # y coordinate
+    lhu t0, width
+    lhu t1, height
     li a7, 2200
-    loop_row:
-        beq a0, t1, end_row
-        li a1, 0 # y coordinate
-        loop_col:
-            beq a1, t0, end_col
+    # loops for each row
+    1:
+        beq a1, t1, 1f
+        li a0, 0 # x coordinate
+        # loops for each column
+        2:
+            beq a0, t0, 2f
             lbu t2, (a3) # t2 is the current color
-            #addi t2, t2, -'0'
             li a2, 255 # a2 is the concatenated pixel's colors, always ends with alpha = 255
+            # setting RGB using t2 by sliding it left and concatenating
             slli t2, t2, 8
             or a2, a2, t2
             slli t2, t2, 8
@@ -98,33 +97,13 @@ show_image:
             or a2, a2, t2
             ecall
             addi a3, a3, 1 # next number
-            addi a1, a1, 1
-            j loop_col
-        end_col:
-        addi a0, a0, 1
-        j loop_row
-    end_row:
+            addi a0, a0, 1 # next column
+            j 2b
+        2:
+        addi a1, a1, 1 # next row
+        j 1b
+    1:
     ret
-
-    # li a0, 0
-    # li a1, 0
-    # li a7, 2200
-    # la t0, buffer
-    # 1:
-    #
-    # 1:
-    # li a0, 100 # x coordinate = 100
-    # li a1, 200 # y coordinate = 200
-    # li a2, 0xAAAAAAFF # pixel color
-    # li a7, 2200 # syscall setPixel (2200)
-    # 1:
-    #     li t0, 300
-    #     beq a1, t0, 1f
-    #     addi a1, a1, 1
-    #     ecall
-    #     j 1b
-    # 1:
-    # ret
 
 exit:
     li a0, 0
@@ -132,27 +111,19 @@ exit:
     ecall
 
 _start:
+    # load the buffer
     la a0, input_file
     jal open
-
-    mv s0, a0 # save file descriptor to s0
-    la a1, buffer
-    li a2, 15 # max header size
     jal read_pgm
-
+    # extract info from the header
     la a0, buffer
-    jal set_width_height
-    mv s1, a0 # save colors start address to s1
-
-    lhu t0, width
-    lhu t1, height
-    mv a0, s0 # file descriptor
-    la a1, buffer # buffer start
-    mul a2, t0, t1 # a2 = width * height (number of bytes containing color)
-    addi a2, a2, 13
-    jal read_pgm
-
-    mv a0, s1
+    jal extract_header
+    # initalize canvas
+    lhu a0, width
+    lhu a1, height
+    jal start_canvas
+    # paint the image
+    la a0, buffer
+    addi a0, a0, 13 # move a0 to the start of the color matrix
     jal show_image
-
     jal exit
