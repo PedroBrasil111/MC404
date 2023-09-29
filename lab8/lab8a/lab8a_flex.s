@@ -1,8 +1,7 @@
 .bss
-buffer: .skip 262159 # 13 (header) + 100 (color matrix) bytes
+buffer: .skip 262159 # 13 (header) + 512*512 (color matrix) bytes
 width: .skip 2  # halfword (max 512)
 height: .skip 2 # halfword (max 512)
-start: .skip 4
 
 .text
 .globl _start
@@ -10,7 +9,7 @@ input_file: .asciz "image.pgm"
 
 # parameters: a0 - width, a1 - length (both between 0 and 512)
 start_canvas:
-    li a7, 2201
+    li a7, 2201 # syscall setCanvasSize
     ecall
     ret
 
@@ -74,13 +73,13 @@ read_pgm:
     ecall
     ret
 
-# parameters: a0 - address of the buffer
+# parameters: a0 - address of the buffer, a1 - width, a2 - height
 show_image:
     mv a3, a0 # a3 is the address of the number being shown
+    mv t0, a1
+    mv t1, a2
     li a1, 0 # y coordinate
-    lhu t0, width
-    lhu t1, height
-    li a7, 2200
+    li a7, 2200 # syscall setPixel
     # loops for each row
     1:
         beq a1, t1, 1f
@@ -127,5 +126,7 @@ _start:
     jal start_canvas
     # paint the image
     mv a0, s0
+    lhu a1, width
+    lhu a2, height
     jal show_image
     jal exit

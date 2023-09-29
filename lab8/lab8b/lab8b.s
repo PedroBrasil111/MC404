@@ -1,7 +1,20 @@
 .bss
-buffer: .skip 113 # 13 (header) + 100 (color matrix) bytes
+buffer: .skip 262159 # 13 (header) + 512*512 (color matrix) bytes
+filtered_image: .skip 262146 # 512*512 bytes
 width: .skip 2  # halfword (max 512)
 height: .skip 2 # halfword (max 512)
+
+.data
+filter:
+    .byte -1
+    .byte -1
+    .byte -1
+    .byte -1
+    .byte 8
+    .byte -1
+    .byte -1
+    .byte -1
+    .byte -1
 
 .text
 .globl _start
@@ -9,7 +22,7 @@ input_file: .asciz "image.pgm"
 
 # parameters: a0 - width, a1 - length (both between 0 and 512)
 start_canvas:
-    li a7, 2201
+    li a7, 2201 # syscall setCanvasSize
     ecall
     ret
 
@@ -22,6 +35,7 @@ open:
     ret
 
 # paramaters: a0 - address of the string, a1 - address where the number will be stored
+# returns address where the conversion stopped
 atoi:
     li t0, ' ' # stop condition
     li t3, '\n' # 2nd stop condition
@@ -40,6 +54,41 @@ atoi:
     sh a2, (a1) # stores the number
     ret
 
+# parameters: a0 - buffer address, a1 - width, a2 - height
+apply_filter:
+    mv a3, a0 # a3 is the address of the number pixel being converted
+    mv t0, a1
+    mv t1, a2
+    li a1, 0 # y coordinate
+    li a7, 2200 # syscall setPixel
+    # loops for each row
+    1:
+        beq a1, t1, 1f
+        li a0, 0 # x coordinate
+        # loops for each column
+        2:
+            beq a0, t0, 2f
+            lbu t2, (a3) # t2 is the current color
+            li a2, 255 # a2 is the concatenated pixel's colors, always ends with alpha = 255
+            # setting RGB using t2 by sliding it left 3 times and concatenating
+            slli t2, t2, 8
+            or a2, a2, t2
+            slli t2, t2, 8
+            or a2, a2, t2
+            slli t2, t2, 8
+            or a2, a2, t2
+            ecall
+            addi a3, a3, 1 # next number
+            addi a0, a0, 1 # next column
+            j 2b
+        2:
+        add a1, a1, t1
+        j 1b
+    1:
+    ret
+
+
+
 # parameters: a0 - buffer address
 # returns the address in which the colors start in the buffer
 extract_header:
@@ -53,10 +102,10 @@ extract_header:
     addi a0, a0, 3 # width starts on 4th byte
     la a1, width
     jal atoi
-    mv a0, s0
-    addi a0, a0, 6 # since on all test cases width is length 2, height starts on 5th byte
+    addi a0, a0, 1 # a0 points to the start of the height
     la a1, height
     jal atoi
+    addi a0, a0, 5 # a0 points to the start of the colors
     # restoring ra and s0
     lw s0, (sp)
     addi sp, sp, 4
@@ -67,18 +116,18 @@ extract_header:
 # parameters: a0 - file descriptor
 read_pgm:
     la a1, buffer
-    li a2, 113
+    li a2, 262159
     li a7, 63         # syscall read
     ecall
     ret
 
-# parameters: a0 - address of the buffer
+# parameters: a0 - address of the buffer, a1 - width, a2 - height
 show_image:
     mv a3, a0 # a3 is the address of the number being shown
+    mv t0, a1
+    mv t1, a2
     li a1, 0 # y coordinate
-    lhu t0, width
-    lhu t1, height
-    li a7, 2200
+    li a7, 2200 # syscall setPixel
     # loops for each row
     1:
         beq a1, t1, 1f
@@ -88,7 +137,7 @@ show_image:
             beq a0, t0, 2f
             lbu t2, (a3) # t2 is the current color
             li a2, 255 # a2 is the concatenated pixel's colors, always ends with alpha = 255
-            # setting RGB using t2 by sliding it left and concatenating
+            # setting RGB using t2 by sliding it left 3 times and concatenating
             slli t2, t2, 8
             or a2, a2, t2
             slli t2, t2, 8
@@ -118,12 +167,14 @@ _start:
     # extract info from the header
     la a0, buffer
     jal extract_header
+    mv s0, a0
     # initalize canvas
     lhu a0, width
     lhu a1, height
     jal start_canvas
     # paint the image
-    la a0, buffer
-    addi a0, a0, 13 # move a0 to the start of the color matrix
+    mv a0, s0
+    lhu a1, width
+    lhu a2, height
     jal show_image
     jal exit
