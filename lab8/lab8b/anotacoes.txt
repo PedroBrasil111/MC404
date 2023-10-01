@@ -19,3 +19,6 @@ p/ matriz Win:
 # r0 - row, r1 - column, r2 - width
 # mul r0, r0, r2
 # add r0, r0, r1
+
+1465
+19517

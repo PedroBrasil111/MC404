@@ -160,7 +160,7 @@ add_borders:
 
 # parameters: a0 - buffer address
 # returns the address in which the color pixels start in the buffer
-extract_header:
+extract_header_info:
     # storing ra and s0
     addi sp, sp, -4
     sw ra, (sp)
@@ -236,7 +236,7 @@ _start:
     jal read_pgm
     # extract info from the header
     la a0, buffer
-    jal extract_header
+    jal extract_header_info
     mv s0, a0
     # apply filter
     mv a0, s0
