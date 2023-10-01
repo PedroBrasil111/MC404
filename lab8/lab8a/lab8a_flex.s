@@ -1,5 +1,5 @@
 .bss
-buffer: .skip 262159 # 13 (header) + 512*512 (color matrix) bytes
+buffer: .skip 262159 # 15 (header) + 512*512 (color matrix) bytes
 width: .skip 2  # halfword (max 512)
 height: .skip 2 # halfword (max 512)
 
