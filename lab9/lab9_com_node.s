@@ -1,8 +1,30 @@
+.globl head_node
 .globl _start
 
 .bss
-buffer: .skip 7    # input: number between -10000 and 10000 in ascii (unsigned bytes)
-sum: .skip 4       # input converted to integer (signed word)
+buffer: .skip 7    # number between -10000 and 10000 in ascii (unsigned bytes)
+number: .skip 4    # signed word
+
+.data
+head_node:
+.word 10
+.word -4
+.word node_1
+.skip 10
+node_1:
+.word 56
+.word 78
+.word node_2
+.skip 5
+node_3:
+.word -100
+.word -43
+.word 0
+node_2:
+.word -654
+.word 590
+.word node_3
+
 
 .text
 # parameters: a0 - read size, a1 - buffer where string will be stored
@@ -109,7 +131,7 @@ find_node:
         lw t0, (a1)          # t0 <= VAL1
         lw t1, 4(a1)         # t1 <= VAL2
         add t0, t0, t1       # t0 <= VAL1 + VAL2
-        beq t0, a0, found    # if t0 == sum then done
+        beq t0, a0, found    # if t0 == number then done
         addi a2, a2, 1       # update index
         lw a1, 8(a1)         # address of the next node
         j 1b
@@ -126,10 +148,10 @@ _start:
     la a1, buffer
     jal read
     la a0, buffer
-    la a1, sum
+    la a1, number
     jal atoi
     # searching for node and writing
-    lw a0, sum
+    lw a0, number
     jal find_node    # a0 is now the node's index
     la a1, buffer
     jal itoa         # convert index to ascii, a0 is the size of the string

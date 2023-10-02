@@ -76,25 +76,27 @@ apply_filter:
             li t3, 1
             bgt t2, t3, 2f
             li t3, -1    # t3 <= column (q)
-            3:
-                li t4, 1
-                bgt t3, t4, 3f
+
                 # getting w[k+1][q+1]
                 addi t4, t2, 1     # t4 = k+1
                 li t5, 3
                 mul t4, t4, t5     # t4 = (k+1)*3
-                add t4, t4, t3
-                addi t4, t4, 1     # t4 += (q+1)
+                addi t4, t4, 1
                 add t4, a4, t4     # address to element
-                lb t4, (t4)        # t4 <= w[k+1][q+1]
                 # getting W_in[i+k][j+q]
                 divu t6, t0, a2    # t6 <= row (i)
                 add t5, t6, t2     # t5 = (i+k)
                 mul t5, t5, a2     # t5 = (i+k)*width
                 remu t6, t0, a2    # t6 <= column (j)
                 add t5, t5, t6
-                add t5, t5, t3     # t5 += (j+q)
                 add t5, a0, t5     # address to element
+
+            3:
+                li s6, 1
+                bgt t3, s6, 3f
+                add t4, t4, t3
+                lb t4, (t4)        # t4 <= w[k+1][q+1]
+                add t5, t5, t3     # t5 += (j+q)
                 lbu t5, (t5)       # t5 <= W_in[k+1][j+q]
                 # multiplying and adding
                 mul t4, t4, t5     # t4 <= w[k+1][q+1] * W_in[i+k][j+q]
@@ -146,9 +148,10 @@ add_borders:
     addi t1, a1, -1    # last column
     li t2, 1           # t2 is the current row
     mv t3, a0
-    # loops for each row
+    addi a3, a2, -1 # stop condition (height - 1)
+    # loops from second to penultimate row
     1:
-        bgeu t2, a2, 1f    # stop if row >= height
+        bgeu t2, a3, 1f    # stop if row >= height - 1 
         add t3, t3, a1     # t3 is the address to the 1st item in the row
         sb t0, (t3)
         add t4, t3, t1     # t4 is the address to the last item in the row
@@ -190,38 +193,50 @@ read_pgm:
     ecall
     ret
 
-# parameters: a0 - address of the buffer, a1 - width, a2 - height
+# parameters: a0 - buffer address, a1 - width, a2 - height
 # TODO - possivel com so 1 loop (worth?)
+# 19681
+# 19523
 show_image:
-    mv a3, a0      # a3 is the address of the number being shown
-    mv t0, a1
-    mv t1, a2
-    li a1, 0       # y coordinate
+    # storing info
+    addi sp, sp, -4
+    sw s0, (sp)
+    addi sp, sp, -4
+    sw s1, (sp)
+    addi sp, sp, -4
+    sw s2, (sp)
+    #
+    mv s0, a0      # address
+    mv s1, a1      # width
+    mv s2, a2      # height
+    li t0, 0       # current position in the buffer
     li a7, 2200    # syscall setPixel
-    # loops for each row
     1:
-        bgeu a1, t1, 1f
-        li a0, 0    # x coordinate
-        # loops for each column
-        2:
-            bgeu a0, t0, 2f
-            lbu t2, (a3)      # t2 is the current color
-            li a2, 255        # a2 is the concatenated pixel's colors, always ends with alpha = 255
-            # setting RGB using t2 by sliding it left 3 times and concatenating each time
-            slli t2, t2, 8
-            or a2, a2, t2
-            slli t2, t2, 8
-            or a2, a2, t2
-            slli t2, t2, 8
-            or a2, a2, t2
-            ecall             # show pixel
-            addi a3, a3, 1    # next number
-            addi a0, a0, 1    # next column
-            j 2b
-        2:
-        addi a1, a1, 1    # next row
+        divu a1, t0, s1    # a1 <= current row
+        bgeu a1, s2, 1f    # if current row >= height end loop
+        remu a0, t0, s1    # a0 <= current column
+        add t3, s0, t0
+        lbu t3, (t3)       # t3 is the current color
+        li a2, 255      
+        # a2 is the concatenated pixel's colors, always ends with alpha = 255
+        # setting RGB using t2 by sliding it left 3 times and concatenating each time
+        slli t3, t3, 8
+        or a2, a2, t3
+        slli t3, t3, 8
+        or a2, a2, t3
+        slli t3, t3, 8
+        or a2, a2, t3
+        ecall               # show pixel
+        addi t0, t0, 1      # next pixel
         j 1b
     1:
+    # restoring info
+    lw s2, (sp)
+    addi sp, sp, 4
+    lw s1, (sp)
+    addi sp, sp, 4
+    lw s0, (sp)
+    addi sp, sp, 4
     ret
 
 exit:
