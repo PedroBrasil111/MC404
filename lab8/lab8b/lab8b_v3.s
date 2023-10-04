@@ -1,14 +1,15 @@
 .bss
-buffer: .skip 262159 # 15 (header) + 512*512 (color matrix) bytes
-filtered_image: .skip 262144 # 512*512 bytes
-width: .skip 2 # halfword (max 512)
-height: .skip 2 # halfword (max 512)
+buffer: .skip 262159 # 15 (header) + 512*512 (color matrix) unsigned bytes
+filtered_image: .skip 262144 # 512*512 unsigned bytes
+width: .skip 2 # unsigned halfword (max 512)
+height: .skip 2 # unsigned halfword (max 512)
 
 .data
-# -1 -1 -1
-# -1  8 -1
-# -1 -1 -1
 filter:
+    # -1 -1 -1
+    # -1  8 -1
+    # -1 -1 -1
+    # signed bytes
     .byte -1
     .byte -1
     .byte -1
@@ -37,34 +38,35 @@ open:
     ecall
     ret
 
-# paramaters: a0 - address of the string, a1 - address where the number will be stored
+# paramaters: a0 - ascii number's address,
+#             a1 - address where the number will be stored
 # returns address where the conversion stopped
-atoi:
-    li t0, ' '     # stop condition
-    li t3, '\n'    # 2nd stop condition
-    li t1, 10
-    li a2, 0       # holds number being computed
+unsigned_atoi:
+    li t1, 10          # base 10
+    li a2, 0           # holds number being computed
+    li t3, '9'         # 1st stop condition
+    li t0, '0'         # 2nd stop condition
     1:
         lbu t2, (a0)         # get current digit
-        beq t2, t0, 1f
-        beq t2, t3, 1f
-        addi t2, t2, -'0'    # convert to number
-        mul a2, a2, t1       # multiply by 10
+        bgt t2, t3, 1f       # if digit > '9' then end loop
+        blt t2, t0, 1f       # if digit < '0' then end loop
+        addi t2, t2, -'0'    # convert digit
+        mul a2, a2, t1       # multiply number by 10
         add a2, a2, t2       # add digit
         addi a0, a0, 1
         j 1b
     1:
-    sh a2, (a1)    # stores the number
+    sw a2, (a1)              # store the number
     ret
 
-# parameters: a0 - original image's address, a1 - filtered image's address
+# parameters: a0 - original image's address, a1 - filtered image's address,
 #             a2 - width, a3 - height
 apply_filter:
     addi t0, a2, 1    # 1st pixel that'll be "filtered" - position (1,1)
     1:
         divu t1, t0, a2    # current row
         addi t2, a3, -1
-        bgeu t1, t2, 1f    # stop condition (last row)
+        bgeu t1, t2, 1f    # stop condition (second to last row)
         # M_out[i][j] = sum(w[k+1][q+1] * W_in[i+k][j+q]),
         # where M_out is the filtered image, w is the filter matrix,
         # W_in is the original image, (i, j) are the pixel's coordinates
@@ -124,7 +126,6 @@ apply_filter:
     1:
     ret
 
-
 # parameters: a0 - buffer address, a1 - width, a2 - height
 add_borders:
     # adding borders to 1st and last row
@@ -145,10 +146,11 @@ add_borders:
     # adding borders to 1st and last column
     addi t1, a1, -1    # last column
     li t2, 1           # t2 is the current row
+    addi a3, a2, -1    # stop condition
     mv t3, a0
     # loops for each row
     1:
-        bgeu t2, a2, 1f    # stop if row >= height
+        bgeu t2, a3, 1f    # stop if row >= height - 1
         add t3, t3, a1     # t3 is the address to the 1st item in the row
         sb t0, (t3)
         add t4, t3, t1     # t4 is the address to the last item in the row
@@ -161,37 +163,35 @@ add_borders:
 # parameters: a0 - buffer address
 # returns the address in which the color pixels start in the buffer
 extract_header_info:
-    # storing ra and s0
+    # storing ra and s1
     addi sp, sp, -4
     sw ra, (sp)
     addi sp, sp, -4
-    sw s0, (sp)
+    sw s1, (sp)
     # getting width and height
-    mv s0, a0
+    mv s1, a0
     addi a0, a0, 3    # width starts on 4th byte
     la a1, width
-    jal atoi
+    jal unsigned_atoi
     addi a0, a0, 1    # a0 points to the start of the height
     la a1, height
-    jal atoi
+    jal unsigned_atoi
     addi a0, a0, 5    # a0 points to the start of the color pixels (assuming max_val = 255)
-    # restoring ra and s0
-    lw s0, (sp)
+    # restoring ra and s1
+    lw s1, (sp)
     addi sp, sp, 4
     lw ra, (sp)
     addi sp, sp, 4
     ret
 
-# parameters: a0 - file descriptor
+# parameters: a0 - file descriptor, a1 - buffer where info will be stored
 read_pgm:
-    la a1, buffer
-    li a2, 262159
-    li a7, 63 # syscall read
+    li a2, 262159    # size
+    li a7, 63        # syscall read
     ecall
     ret
 
 # parameters: a0 - address of the buffer, a1 - width, a2 - height
-# TODO - possivel com so 1 loop (worth?)
 show_image:
     mv a3, a0      # a3 is the address of the number being shown
     mv t0, a1
@@ -232,14 +232,13 @@ exit:
 _start:
     # load the buffer
     la a0, input_file
-    jal open
+    jal open                   # a0 is now the file descriptor for the image
+    la a1, buffer
     jal read_pgm
     # extract info from the header
     la a0, buffer
-    jal extract_header_info
-    mv s0, a0
+    jal extract_header_info    # a0 now points to the start of the pixel colors
     # apply filter
-    mv a0, s0
     la a1, filtered_image
     lhu a2, width
     lhu a3, height

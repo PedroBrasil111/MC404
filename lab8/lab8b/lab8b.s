@@ -1,14 +1,15 @@
 .bss
-buffer: .skip 262159 # 15 (header) + 512*512 (color matrix) bytes
-filtered_image: .skip 262144 # 512*512 bytes
-width: .skip 2 # halfword (max 512)
-height: .skip 2 # halfword (max 512)
+buffer: .skip 262159            # 15 (header) + 512*512 (color matrix) unsigned bytes
+filtered_image: .skip 262144    # 512*512 unsigned bytes
+width: .skip 2                  # unsigned halfword (max 512)
+height: .skip 2                 # unsigned halfword (max 512)
 
 .data
-# -1 -1 -1
-# -1  8 -1
-# -1 -1 -1
 filter:
+    # -1 -1 -1
+    # -1  8 -1
+    # -1 -1 -1
+    # signed bytes
     .byte -1
     .byte -1
     .byte -1
@@ -37,29 +38,36 @@ open:
     ecall
     ret
 
-# paramaters: a0 - address of the string, a1 - address where the number will be stored
+# paramaters: a0 - ascii number's address,
+#             a1 - address where the number will be stored
 # returns address where the conversion stopped
-atoi:
-    li t0, ' '     # stop condition
-    li t3, '\n'    # 2nd stop condition
-    li t1, 10
-    li a2, 0       # holds number being computed
+unsigned_atoi:
+    li t1, 10          # base 10
+    li a2, 0           # holds number being computed
+    li t3, '9'         # 1st stop condition
+    li t0, '0'         # 2nd stop condition
     1:
         lbu t2, (a0)         # get current digit
-        beq t2, t0, 1f
-        beq t2, t3, 1f
-        addi t2, t2, -'0'    # convert to number
-        mul a2, a2, t1       # multiply by 10
+        bgt t2, t3, 1f       # if digit > '9' then end loop
+        blt t2, t0, 1f       # if digit < '0' then end loop
+        addi t2, t2, -'0'    # convert digit
+        mul a2, a2, t1       # multiply number by 10
         add a2, a2, t2       # add digit
         addi a0, a0, 1
         j 1b
     1:
-    sh a2, (a1)    # stores the number
+    sw a2, (a1)              # store the number
     ret
 
 # parameters: a0 - original image's address, a1 - filtered image's address
 #             a2 - width, a3 - height
 apply_filter:
+    # storing s1 and s2
+    addi sp, sp, -4
+    sw s1, (sp)
+    addi sp, sp, -4
+    sw s2, (sp)
+    # applying filter
     addi t0, a2, 1    # 1st pixel that'll be "filtered" - position (1,1)
     1:
         divu t1, t0, a2    # current row
@@ -71,36 +79,34 @@ apply_filter:
         # and for each k going from -1 to 1, q goes from -1 to 1.
         la a4, filter
         li t1, 0     # stores what the pixel color will be after filtered
-        li t2, -1    # t2 <= row (k)
+        li t2, -1    # t2 <= k (from -1 to 1)
         2:
             li t3, 1
-            bgt t2, t3, 2f
-            li t3, -1    # t3 <= column (q)
-
-                # getting w[k+1][q+1]
-                addi t4, t2, 1     # t4 = k+1
-                li t5, 3
-                mul t4, t4, t5     # t4 = (k+1)*3
-                addi t4, t4, 1
-                add t4, a4, t4     # address to element
-                # getting W_in[i+k][j+q]
-                divu t6, t0, a2    # t6 <= row (i)
-                add t5, t6, t2     # t5 = (i+k)
-                mul t5, t5, a2     # t5 = (i+k)*width
-                remu t6, t0, a2    # t6 <= column (j)
-                add t5, t5, t6
-                add t5, a0, t5     # address to element
-
+            bgt t2, t3, 2f     # if k >= 1 then end loop
+            li t3, -1          # t3 <= q (from -1 to 1)
+            addi t4, t2, 1     # t4 = k+1
+            li t5, 3
+            mul t4, t4, t5     # t4 *= 3
+            addi t4, t4, 1     # t4 += 1
+            divu t6, t0, a2    # t6 <= row (i)
+            add t5, t6, t2     # t5 = (i+k)
+            mul t5, t5, a2     # t5 *= width
+            remu t6, t0, a2    # t6 <= column (j)
+            add t5, t5, t6     # t5 += j
+            add t4, a4, t4     # partial address to element in w (filter)
+            add t5, a0, t5     # partial address to element in W_in (original image)
             3:
-                li s6, 1
-                bgt t3, s6, 3f
-                add t4, t4, t3
-                lb t4, (t4)        # t4 <= w[k+1][q+1]
-                add t5, t5, t3     # t5 += (j+q)
-                lbu t5, (t5)       # t5 <= W_in[k+1][j+q]
+                li a5, 1
+                bgt t3, a5, 3f     # if t3 >= 1 then end loop
+                # getting w[k+1][q+1]
+                add s1, t4, t3     # s1 = (k+1)*3 + (1+j)
+                lb s1, (s1)        # s1 <= w[k+1][q+1]
+                # getting W_in[i+k][j+q]
+                add s2, t5, t3     # s2 = (i+k)*width + (j+q)
+                lbu s2, (s2)       # s2 <= W_in[k+1][j+q]
                 # multiplying and adding
-                mul t4, t4, t5     # t4 <= w[k+1][q+1] * W_in[i+k][j+q]
-                add t1, t1, t4     # add to pixel color
+                mul s1, s1, s2     # s1 <= w[k+1][q+1] * W_in[i+k][j+q]
+                add t1, t1, s1     # add to pixel color
                 addi t3, t3, 1
                 j 3b
             3:
@@ -108,9 +114,9 @@ apply_filter:
             j 2b
         2:
         # checking if color's in the interval [0, 255]
-        bltz t1, negative       # if t1 < 0 then negative
+        bltz t1, negative       # if t1 < 0 then jump to negative
         li t2, 255
-        bgt t1, t2, over_255    # if t1 > 255 then over_255
+        bgt t1, t2, over_255    # if t1 > 255 then jump to over_255
         j store_filtered
         negative:
         li t1, 0
@@ -124,8 +130,12 @@ apply_filter:
         addi t0, t0, 1    # next pixel
         j 1b
     1:
+    # restoring s1 and s2
+    lw s2, (sp)
+    addi sp, sp, 4
+    lw s1, (sp)
+    addi sp, sp, 4
     ret
-
 
 # parameters: a0 - buffer address, a1 - width, a2 - height
 add_borders:
@@ -147,11 +157,11 @@ add_borders:
     # adding borders to 1st and last column
     addi t1, a1, -1    # last column
     li t2, 1           # t2 is the current row
+    addi a3, a2, -1    # stop condition
     mv t3, a0
-    addi a3, a2, -1 # stop condition (height - 1)
-    # loops from second to penultimate row
+    # loops for each row
     1:
-        bgeu t2, a3, 1f    # stop if row >= height - 1 
+        bgeu t2, a3, 1f    # stop if row >= height - 1
         add t3, t3, a1     # t3 is the address to the 1st item in the row
         sb t0, (t3)
         add t4, t3, t1     # t4 is the address to the last item in the row
@@ -164,79 +174,65 @@ add_borders:
 # parameters: a0 - buffer address
 # returns the address in which the color pixels start in the buffer
 extract_header_info:
-    # storing ra and s0
+    # storing ra and s1
     addi sp, sp, -4
     sw ra, (sp)
     addi sp, sp, -4
-    sw s0, (sp)
+    sw s1, (sp)
     # getting width and height
-    mv s0, a0
+    mv s1, a0
     addi a0, a0, 3    # width starts on 4th byte
     la a1, width
-    jal atoi
+    jal unsigned_atoi
     addi a0, a0, 1    # a0 points to the start of the height
     la a1, height
-    jal atoi
+    jal unsigned_atoi
     addi a0, a0, 5    # a0 points to the start of the color pixels (assuming max_val = 255)
-    # restoring ra and s0
-    lw s0, (sp)
+    # restoring ra and s1
+    lw s1, (sp)
     addi sp, sp, 4
     lw ra, (sp)
     addi sp, sp, 4
     ret
 
-# parameters: a0 - file descriptor
+# parameters: a0 - file descriptor, a1 - buffer where info will be stored
 read_pgm:
-    la a1, buffer
-    li a2, 262159
-    li a7, 63 # syscall read
+    li a2, 262159    # size
+    li a7, 63        # syscall read
     ecall
     ret
 
-# parameters: a0 - buffer address, a1 - width, a2 - height
-# TODO - possivel com so 1 loop (worth?)
-# 19681
-# 19523
+# parameters: a0 - address of the buffer, a1 - width, a2 - height
 show_image:
-    # storing info
-    addi sp, sp, -4
-    sw s0, (sp)
-    addi sp, sp, -4
-    sw s1, (sp)
-    addi sp, sp, -4
-    sw s2, (sp)
-    #
-    mv s0, a0      # address
-    mv s1, a1      # width
-    mv s2, a2      # height
-    li t0, 0       # current position in the buffer
+    mv a3, a0      # a3 is the address of the number being shown
+    mv t0, a1
+    mv t1, a2
+    li a1, 0       # y coordinate
     li a7, 2200    # syscall setPixel
+    # loops for each row
     1:
-        divu a1, t0, s1    # a1 <= current row
-        bgeu a1, s2, 1f    # if current row >= height end loop
-        remu a0, t0, s1    # a0 <= current column
-        add t3, s0, t0
-        lbu t3, (t3)       # t3 is the current color
-        li a2, 255      
-        # a2 is the concatenated pixel's colors, always ends with alpha = 255
-        # setting RGB using t2 by sliding it left 3 times and concatenating each time
-        slli t3, t3, 8
-        or a2, a2, t3
-        slli t3, t3, 8
-        or a2, a2, t3
-        slli t3, t3, 8
-        or a2, a2, t3
-        ecall               # show pixel
-        addi t0, t0, 1      # next pixel
+        bgeu a1, t1, 1f
+        li a0, 0    # x coordinate
+        # loops for each column
+        2:
+            bgeu a0, t0, 2f
+            lbu t2, (a3)      # t2 is the current color
+            li a2, 255        # a2 is the concatenated pixel's colors, always ends with alpha = 255
+            # setting RGB using t2 by sliding it left 3 times and concatenating each time
+            slli t2, t2, 8
+            or a2, a2, t2
+            slli t2, t2, 8
+            or a2, a2, t2
+            slli t2, t2, 8
+            or a2, a2, t2
+            ecall             # show pixel
+            addi a3, a3, 1    # next number
+            addi a0, a0, 1    # next column
+            j 2b
+        2:
+        addi a1, a1, 1    # next row
         j 1b
     1:
-    # restoring info
-    lw s2, (sp)
-    addi sp, sp, 4
-    lw s1, (sp)
-    addi sp, sp, 4
-    lw s0, (sp)
-    addi sp, sp, 4
     ret
 
 exit:
@@ -247,14 +243,13 @@ exit:
 _start:
     # load the buffer
     la a0, input_file
-    jal open
+    jal open                   # a0 is now the file descriptor for the image
+    la a1, buffer
     jal read_pgm
     # extract info from the header
     la a0, buffer
-    jal extract_header_info
-    mv s0, a0
+    jal extract_header_info    # a0 now points to the start of the pixel colors
     # apply filter
-    mv a0, s0
     la a1, filtered_image
     lhu a2, width
     lhu a3, height

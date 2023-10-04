@@ -23,7 +23,7 @@ write:
 
 exit:
     li a0, 0
-    li a7, 93   # syscall exit
+    li a7, 93
     ecall
 
 # paramaters: a0 - ascii number's address,
@@ -58,58 +58,54 @@ signed_atoi:
     sw a2, (a1)              # store the number
     ret
 
-# parameters: a0 - number that'll be written
-write_num:
-    # storing ra and s1
-    addi sp, sp, -8
-    sw ra, 4(sp)
-    sw s1, (sp)
-    # converting number to ascii and stacking its digits
+# parameters: a0 - number that'll be converted,
+#             a1 - store address
+# returns the number length
+itoa:
     addi sp, sp, -1
     li t0, '\n'       # stack line break (last byte)
     sb t0, (sp)
-    li t1, 10         # base 10
-    li t2, 0          # t2 indicates whether the number is negative (1) or positive (0)
-    li s1, 1          # s1 is the number's length in ascii digits(including '\n')
+    li t2, 0          # indicates whether number is negative (1) or positive (0)
     bgez a0, not_negative
     li t2, 1
     sub a0, x0, a0    # a0 is the absolute value of the number
     not_negative:
+    li t1, 10         # base 10
     1:
         rem t0, a0, t1      # t0 is the last digit of a0
         addi t0, t0, '0'    # turn into ascii character
         addi sp, sp, -1     # update sp
         sb t0, (sp)         # stack digit
-        addi s1, s1, 1
         divu a0, a0, t1     # divide number by 10 (remove last digit)
         beqz a0, 1f         # if a0 == 0, there's no more digits to stack
         j 1b
     1:
     # treating negative case
-    beqz t2, wr_num    # if not negative, jump to wr_num
+    beqz t2, pop    # if not negative, jump to pop case
     addi sp, sp, -1
     li t0, '-'
-    sb t0, (sp)        # stack minus sign if number is negative
-    addi s1, s1, 1
-    # writing the number
-    wr_num:
-    mv a0, s1          # size
-    mv a1, sp          # buffer
-    jal write
-    # popping digits from stack
-    add sp, sp, s1
-    # restoring ra and s1
-    lw s1, (sp)
-    lw ra, 4(sp)
-    addi sp, sp, 8
+    sb t0, (sp)     # stack minus sign if number is negative
+    # popping the digits from the stack and storing in the buffer
+    pop:
+    li t0, '\n'     # stop condition
+    li a0, 1        # string size
+    1:
+        lbu t1, (sp)      # pop digit
+        addi sp, sp, 1    # update sp
+        sb t1, (a1)       # store
+        addi a1, a1, 1    # update address
+        addi a0, a0, 1    # update size
+        beq t1, t0, 1f    # if digit == '\n' then end
+        j 1b
+    1:
     ret
 
 # parameters: a0 - sum that is being searched
 find_node:
     la a1, head_node
-    li a2, 0     # node index
+    li a2, 0    # node index
     1:
-        beqz a1, 1f          # stop if next node is NULL
+        beqz a1, 1f          # stop if a1 == NULL
         lw t0, (a1)          # t0 <= VAL1
         lw t1, 4(a1)         # t1 <= VAL2
         add t0, t0, t1       # t0 <= VAL1 + VAL2
@@ -135,5 +131,8 @@ _start:
     # searching for node and writing
     lw a0, sum
     jal find_node    # a0 is now the node's index
-    jal write_num    # write index
+    la a1, buffer
+    jal itoa         # convert index to ascii, a0 is the size of the string
+    la a1, buffer
+    jal write
     jal exit
