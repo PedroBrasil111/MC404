@@ -1,0 +1,46 @@
+MEMORY SLOT
+0xFFFF0100 - 0xFFFF0300
+
+base + 0x00: "1" - GPS on
+             set to 0 when reading is completed
+             .set GPS_REG_PORT, 0xFFFF0100
+
+base + 0x01: "1" - trigger image capture from Line Camera
+             set to 0 when capture is completed
+
+base + 0x02: "1" - trigger Ultrasonic Sensor device
+             measures distance in front of car
+             set to 0 when measurement is completed
+
+base + 0x04: Euler angle X
+
+base + 0x08: Euler angle Y
+
+base + 0x0C: Euler angle Z
+
+base + 0x10: X-axis
+             .set X_AXIS_DATA_PORT, 0xFFFF0110
+
+base + 0x14: Y-axis
+             .set Y_AXIS_DATA_PORT, 0xFFFF0114
+
+base + 0x18: Z-axis
+             .set Z_AXIS_DATA_PORT, 0xFFFF0118
+
+base + 0x1C: distance (cm) between Ultrasonic Sensor and nearest obstacle
+             returns -1 if no obstacle is within 20m
+
+base + 0x20: Sets steering wheel direction
+             Negative: left, positive: right
+             -127 to 127
+             .set STEERING_WHELL_REG_PORT, 0xFFFF0120
+
+base + 0x21: Sets engine direction
+             1: fwd, 0: off, -1: backward
+             .set ENGINE_DIR_REG_PORT, 0xFFFF0121
+
+base + 0x22: Sets the hand break (1 = enabled)
+             .set HAND_BR_REG_PORT, 0xFFFF0122
+
+base + 0x24: 256-byte array
+             Stores the image captured by the Line Camera

@@ -38,7 +38,7 @@ exit:
 
 # Writes the C string pointed by a0 to the standard output (stdout)
 # and appends a newline character ('\n').
-# Parameters: a0 - address of the string (terminated by \0)
+# Parameters: a0 - address of the string (terminated by a null character)
 # No return value
 puts:
     # storing registers
@@ -48,8 +48,7 @@ puts:
     # writing string
     mv s1, a0          # s1 <= string address
     li t1, 0           # t1 is the string's length
-    # loops for each digit until it reaches null character
-1:
+1: # loops for each digit until it reaches a null character
     lbu t2, (s1)       # t2 is the current character
     beqz t2, 1f        # if it's the null character, end loop
     addi t1, t1, 1     # increment length
@@ -84,8 +83,7 @@ gets:
     mv s1, a0         # s1 <= buffer address
     mv s2, a0         # s2 <= buffer address
     li s3, '\n'
-    # reads and stores each character
-1:
+1: # reads and stores each character
     li a0, 1          # size read
     mv a1, s1         # address where character will be stored
     jal read          # read and store character
@@ -156,7 +154,7 @@ itoa:
     li t2, 1
     sub a0, x0, a0         # a0 is the absolute value of the number
 not_negative:
-1:                         # loops for each digit
+1: # loops for each digit
     remu t0, a0, a2        # t0 <= a0 % base (value of current digit)
     li t1, 10
     bge t0, t1, letter     # if t0 >= 10 the digit will be a letter
