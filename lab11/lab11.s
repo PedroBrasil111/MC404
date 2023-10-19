@@ -1,5 +1,11 @@
 .bss
 buffer: .skip 4
+x_coord: .skip 4
+y_coord: .skip 4
+z_coord: .skip 4
+x_ang: .skip 4
+y_ang: .skip 4
+z_ang: .skip 4
 
 .text
 .globl _start
@@ -7,9 +13,13 @@ buffer: .skip 4
 .set NULL, 0
 .set GPS_REG_PORT, 0xFFFF0100
 .set SENSOR_REG_PORT, 0xFFFF0102
+.set EULER_ANG_X_DATA_PORT, 0xFFFF0104
+.set EULER_ANG_Y_DATA_PORT, 0xFFFF0108
+.set EULER_ANG_Z_DATA_PORT, 0xFFFF010C
 .set X_AXIS_DATA_PORT, 0xFFFF0110
 .set Y_AXIS_DATA_PORT, 0xFFFF0114
 .set Z_AXIS_DATA_PORT, 0xFFFF0118
+.set SENSOR_DIST_DATA_PORT, 0xFFFF011C
 .set STEERING_WHEEL_REG_PORT, 0xFFFF0120
 .set ENGINE_DIR_REG_PORT, 0xFFFF0121
 .set HAND_BR_REG_PORT, 0xFFFF0122
@@ -17,8 +27,8 @@ buffer: .skip 4
 # parameters: a0 - register port address
 trigger_reg_port:
     li t1, 1
-    sb t1, (a0) # triggers the gps
-1: # loops until reading is completed
+    sb t1, (a0) # trigger action
+1: # loops until action is completed
     lb t1, (a0)
     beqz t1, 1f
     j 1b
@@ -32,6 +42,26 @@ trigger_gps:
     jal trigger_reg_port
     lw ra, (sp)
     addi sp, sp, 16
+    ret
+
+get_coordinates:
+    li t0, X_AXIS_DATA_PORT
+    lw t1, 0(t0) # x
+    sw t1, x_coord, t2
+    lw t1, 4(t0) # y
+    sw t1, y_coord, t2
+    lw t1, 8(t0) # z
+    sw t1, z_coord, t2
+    ret
+
+get_euler_angles:
+    li t0, EULER_ANG_X_DATA_PORT
+    lw t1, 0(t0) # x
+    sw t1, x_ang, t2
+    lw t1, 4(t0) # y
+    sw t1, y_ang, t2
+    lw t1, 8(t0) # z
+    sw t1, z_ang, t2
     ret
 
 trigger_sensor:
@@ -50,9 +80,9 @@ set_engine_direction:
     ret
 
 # Parameters: a0 - between -127 and 217
-set_steering_wheel:
+set_steering_wheel_direction:
     li t0, STEERING_WHEEL_REG_PORT
-    sb a0, (t0) # set steering whell direction
+    sb a0, (t0) # set steering wheel direction
     ret
 
 # Parameters: a0 - 1 (enabled), 0 (disabled)
@@ -62,17 +92,31 @@ set_hand_break:
     ret
 
 # Returns distance in a0
-distance_to_obsticle:
-    li t0, 
+distance_to_obstacle:
+    li a0, SENSOR_DIST_DATA_PORT
+    lw a0, (a0)
+    ret
 
 _start:
-
     jal trigger_gps
-    li a0, X_AXIS_DATA_PORT
-    lw a0, (a0)
+    jal get_euler_angles
+    test:
+    lw a0, x_ang
     la a1, buffer
     li a2, 10
     jal itoa
+    jal puts
+    lw a0, y_ang
+    la a1, buffer
+    li a2, 10
+    jal itoa
+    la a1, buffer
+    jal puts
+    lw a0, z_ang
+    la a1, buffer
+    li a2, 10
+    jal itoa
+    la a1, buffer
     jal puts
     li a0, 0
     jal exit
