@@ -1,21 +1,10 @@
-_start:
-    li a0, 1
-    jal set_engine_direction
-    li a0, -100
-    jal set_steering_wheel_direction
+0/360° | z aumenta
+270°   | x diminui
+180°   | z diminui
+90°    | x aumenta
 
-    li t0, -100
-    1:
-        jal trigger_sensor
-        jal distance_to_obstacle
-        #beq a0, t0, 1b
-        la a1, buffer
-        li a2, 10
-        jal itoa
-        jal puts
-        j 1b
-    1:
-    li a0, 0
-    jal set_hand_break
-    li a0, 0
-    jal exit
+0-90°     | x ++, z ++
+90°-180°  | x ++, z --
+180°-270° | x --, z --
+270°-360° | x --, z ++
+x apontando pra cima, z pra direita

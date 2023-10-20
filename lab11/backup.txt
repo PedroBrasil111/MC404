@@ -1,0 +1,73 @@
+# parameters: a0 - register port address
+trigger_reg_port:
+    li t1, 1
+    sb t1, (a0) # trigger action
+1: # loops until action is completed
+    lb t1, (a0)
+    beqz t1, 1f
+    j 1b
+1:
+    ret
+
+trigger_gps:
+    addi sp, sp, -16
+    sw ra, (sp)
+    li a0, GPS_REG_PORT
+    jal trigger_reg_port
+    lw ra, (sp)
+    addi sp, sp, 16
+    ret
+
+x_ang: .skip 4
+y_ang: .skip 4
+z_ang: .skip 4
+.set EULER_ANG_X_DATA_PORT, 0xFFFF0104
+.set EULER_ANG_Y_DATA_PORT, 0xFFFF0108
+.set EULER_ANG_Z_DATA_PORT, 0xFFFF010C
+get_euler_angles:
+    li t0, EULER_ANG_X_DATA_PORT
+    lw t1, 0(t0) # x
+    sw t1, x_ang, t2
+    lw t1, 4(t0) # y
+    sw t1, y_ang, t2
+    lw t1, 8(t0) # z
+    sw t1, z_ang, t2
+    ret
+
+_start:
+    li a0, 1
+    jal set_engine_direction
+    li a0, -100
+    jal set_steering_wheel_direction
+
+    li t0, -100
+    1:
+        jal trigger_sensor
+        jal distance_to_obstacle
+        #beq a0, t0, 1b
+        la a1, buffer
+        li a2, 10
+        jal itoa
+        jal puts
+        j 1b
+    1:
+    li a0, 0
+    jal set_hand_break
+    li a0, 0
+    jal exit
+
+
+trigger_sensor:
+    addi sp, sp, -16
+    sw ra, (sp)
+    li a0, SENSOR_REG_PORT
+    jal trigger_reg_port
+    lw ra, (sp)
+    addi sp, sp, 16
+    ret
+
+# Returns distance in a0
+distance_to_obstacle:
+    li a0, SENSOR_DIST_DATA_PORT
+    lw a0, (a0)
+    ret

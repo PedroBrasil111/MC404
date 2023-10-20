@@ -67,24 +67,48 @@ check_distance:
     mul t1, t1, t1 # distance in z axis squared
     add t0, t0, t1 # t0 <= distance squared
     li t1, 225 # t1 <= 225 (15 squared)
-    slt a0, t0, t1 # a0 indicates whether the car is within a radius of 15 m of the track
+    slt a0, t0, t1 # a0 indicates if the car is within a radius of 15 m of the track
+    ret
+
+stop_car:
+    addi sp, sp, -16
+    sw ra, (sp)
+    sw s1, 4(sp)
+    li a0, 0
+    jal set_engine_direction # turn engine off
+    li a0, 1
+    jal set_hand_break # turn on hand break
+    li t0, 0
+    1:
+        mv s1, t0
+        jal trigger_gps
+        jal check_distance
+        li t0, X_AXIS_DATA_PORT
+        lw t0, (t0)
+        bne s1, t0, 1b
+    1:
+    lw ra, (sp)
+    lw s1, 4(sp)
+    addi sp, sp, 16
     ret
 
 _start:
     li a0, 1
-    jal set_engine_direction # starts the engine forward
+    jal set_engine_direction # starts the engine to go forward
     li a0, -15
     jal set_steering_wheel_direction
-1:
-    jal trigger_gps
-    jal get_coordinates
-    jal check_distance
-    bnez a0, end
-    j 1b
-1:
-end:
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        jal check_distance
+        bnez a0, stop
+        j 1b
+    1:
+    stop:
+    jal stop_car
     li a0, 0
     jal exit
+
 
 # Writes the C string pointed by a0 to the standard output (stdout)
 # and appends a newline character ('\n').

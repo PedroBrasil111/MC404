@@ -1,0 +1,28 @@
+get_coordinates
+
+trigger_gps
+
+# Parameters a0 - 1 (fwd), 0 (off), -1 (bwd)
+set_engine_direction
+
+# Parameters a0 - ranging from -127 to 127
+set_steering_wheel_direction
+
+# Parameters a0 - 1 (enabled), 0 (disabled)
+set_hand_break
+
+check_distance
+
+stop_car
+
+# Parameters a0 - address of the string (terminated by a null character)
+puts
+
+# Parameters a0 - status code
+exit
+
+# Parameters a0 - value to be converted to a string
+#             a1 - address where the resulting string will be stored
+#             a2 - numerical base used to represent the value as a string
+# Return value a0 - a pointer to the resulting null-terminated string
+itoa
