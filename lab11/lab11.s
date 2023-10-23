@@ -3,6 +3,9 @@ buffer: .skip 100
 x_coord: .skip 4
 y_coord: .skip 4
 z_coord: .skip 4
+x_ang: .skip 4
+y_ang: .skip 4
+z_ang: .skip 4
 
 .text
 .globl _start
@@ -10,6 +13,9 @@ z_coord: .skip 4
 .set NULL, 0
 
 .set GPS_REG_PORT, 0xFFFF0100
+.set EULER_ANG_X_DATA_PORT, 0xFFFF0104
+.set EULER_ANG_Y_DATA_PORT, 0xFFFF0108
+.set EULER_ANG_Z_DATA_PORT, 0xFFFF010C
 .set X_AXIS_DATA_PORT, 0xFFFF0110
 .set Y_AXIS_DATA_PORT, 0xFFFF0114
 .set Z_AXIS_DATA_PORT, 0xFFFF0118
@@ -70,21 +76,139 @@ check_distance:
     slt a0, t0, t1 # a0 indicates whether the car is within a radius of 15 m of the track
     ret
 
-_start:
+# Parameters: a0 - angle
+normalize_angle:
+    li t0, 360
+    bgez a0, pos_angle # if angle >= 0 jump to pos_angle
+    add a0, t0, a0 # a0 <= 360 + angle (where angle < 0)
+    ret
+pos_angle:
+    ble a0, t0, normalized # if angle <= 360 it's already normalized
+    sub a0, a0, t0 # a0 <= angle - 360
+normalized:
+    ret
+
+# Parameters: a0 - turn angle in degrees, ranging from -360 (counter-clockwise) to 360 (clockwise)
+turn:
+    # storing registers
+    addi sp, sp, -16
+    sw ra, (sp)
+    sw s1, 4(sp)
+    sw s2, 8(sp)
+    # initial verifications
+    li s1, EULER_ANG_Y_DATA_PORT
+    lw s1, (s1) # get y angle
+    add s1, s1, a0 # s1 <= current y angle + turn angle
+    bgez a0, turn_right # if turn angle >= 0, turn right
+    li a0, -127
+    jal set_steering_wheel_direction # steer left
+    j start_turn
+    turn_right:
+    li a0, 127
+    jal set_steering_wheel_direction # steer right
+    start_turn:
+    mv a0, s1
+    jal normalize_angle # a0 is now the normalized angle
+    mv s1, a0 # move angle to s1
     li a0, 1
-    jal set_engine_direction # starts the engine forward
-    li a0, -15
-    jal set_steering_wheel_direction
+    jal set_engine_direction # turn engine on
+    # loops until angle is reached
+    li s2, EULER_ANG_Y_DATA_PORT
+    1:
+        jal trigger_gps
+        lw t1, (s2) # t1 <= current y angle
+        beq t1, s1, 1f # if it's the expected angle, end loop
+        # uncertainty +/- 3
+        addi t1, t1, 3
+        beq t1, s1, 1f
+        addi t1, t1, -6
+        beq t1, s1, 1f
+        j 1b
+    1:
+    # resetting directions
+    li a0, 0
+    jal set_engine_direction # turn engine off
+    li a0, 0
+    jal set_steering_wheel_direction # reset steering wheel
+    # restoring registers
+    lw ra, (sp)
+    lw s1, 4(sp)
+    lw s2, 8(sp)
+    addi sp, sp, 16
+    ret
+
+stop_car:
+    addi sp, sp, -16
+    sw ra, (sp)
+    sw s1, 4(sp)
+    sw s2, 8(sp)
+
+    li a0, 0
+    jal set_engine_direction # turn engine off
+    li a0, 1
+    jal set_hand_break # hand brake on
+    sw t0, (t1)
+    li t0, 0xFFFFFFFF
+    # wait until car stops
 1:
-    jal trigger_gps
+    mv s1, t0
+    li s2, 30
+    2:
+        beqz s2, 2f
+        addi s2, s2, -1
+        jal trigger_gps
+    2:
     jal get_coordinates
-    jal check_distance
-    bnez a0, end
+    lw t0, z_coord
+    beq t0, s1, 1f
     j 1b
 1:
-end:
+    li a0, 0
+    jal set_hand_break # hand brake off
+
+    lw ra, (sp)
+    lw s1, 4(sp)
+    lw s2, 8(sp)
+    addi sp, sp, 16
+    ret
+
+_start:
+    la a0, y_ang
+    li a7, 169
+    ecall
+    la a1, buffer
+    li a2, 10
+    jal itoa
+    jal puts
+
+    jal trigger_gps
+    jal get_coordinates
+    li s1, -60
+    li a0, 1
+    jal set_engine_direction
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        lw t0, z_coord
+        beq t0, s1, 1f
+        j 1b
+    1:
+
+    li a0, -58
+    jal turn
+    li a0, 1
+    jal set_engine_direction
+
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        jal check_distance
+        beqz a0, 1b
+    1:
+
     li a0, 0
     jal exit
+
 
 # Writes the C string pointed by a0 to the standard output (stdout)
 # and appends a newline character ('\n').

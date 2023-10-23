@@ -9,6 +9,35 @@ trigger_reg_port:
 1:
     ret
 
+    li a0, 1
+    jal set_engine_direction
+    li s1, -19
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        lw t0, z_coord
+        beq t0, s1, 1f
+        j 1b
+    1:
+    li a0, -1
+    jal set_engine_direction
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        lw t0, z_coord
+        beq t0, s1, 1f
+        j 1b
+    1:
+
+    li a0, -90
+    jal turn
+    li a0, 1
+    jal set_engine_direction
+    1:
+        jal check_distance
+        beqz a0, 1b
+    1:
+
 trigger_gps:
     addi sp, sp, -16
     sw ra, (sp)
@@ -71,3 +100,42 @@ distance_to_obstacle:
     li a0, SENSOR_DIST_DATA_PORT
     lw a0, (a0)
     ret
+
+#    jal trigger_gps
+#    li a0, EULER_ANG_Y_DATA_PORT
+#    lw a0, (a0)
+#    la a1, buffer
+#    li a2, 10
+#    jal itoa
+#    jal puts
+#
+#    li a0, 0
+#    jal turn
+#
+#    li s0, 50
+#    1:
+#        beqz s0, 1f
+#        addi s0, s0, -1
+#        jal trigger_gps
+#        j 1b
+#    1:
+#
+#    jal trigger_gps
+#    li a0, EULER_ANG_Y_DATA_PORT
+#    lw a0, (a0)
+#    la a1, buffer
+#    li a2, 10
+#    jal itoa
+#    jal puts
+#     li a0, 1
+#     jal set_engine_direction # starts the engine forward
+#     li a0, -15
+#     jal set_steering_wheel_direction
+# 1:
+#     jal trigger_gps
+#     jal get_coordinates
+#     jal check_distance
+#     bnez a0, end
+#     j 1b
+# 1:
+# end:
