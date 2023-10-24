@@ -99,15 +99,7 @@ turn:
     li s1, EULER_ANG_Y_DATA_PORT
     lw s1, (s1) # get y angle
     add s1, s1, a0 # s1 <= current y angle + turn angle
-    mv s2, a0
-
-    mv a0, s1
-    la a1, buffer
-    li a2, 10
-    jal itoa
-    jal puts
-
-    bgez s2, turn_right # if turn angle >= 0, turn right
+    bgez a0, turn_right # if turn angle >= 0, turn right
     li a0, -127
     jal set_steering_wheel_direction # steer left
     j start_turn
@@ -118,12 +110,6 @@ turn:
     mv a0, s1
     jal normalize_angle # a0 is now the normalized angle
     mv s1, a0 # move angle to s1
-
-    la a1, buffer
-    li a2, 10
-    jal itoa
-    jal puts
-
     li a0, 1
     jal set_engine_direction # turn engine on
     # loops until angle is reached
@@ -132,11 +118,6 @@ turn:
         jal trigger_gps
         lw t1, (s2) # t1 <= current y angle
         beq t1, s1, 1f # if it's the expected angle, end loop
-        mv a0, t1
-        la a1, buffer
-        li a2, 10
-        jal itoa
-        jal puts
         # uncertainty +/- 3
         addi t1, t1, 3
         beq t1, s1, 1f
@@ -146,10 +127,9 @@ turn:
     1:
     # resetting directions
     li a0, 0
-    jal set_steering_wheel_direction # reset steering wheel
-    li a0, 0
     jal set_engine_direction # turn engine off
-    jal trigger_gps
+    li a0, 0
+    jal set_steering_wheel_direction # reset steering wheel
     # restoring registers
     lw ra, (sp)
     lw s1, 4(sp)
@@ -193,8 +173,39 @@ stop_car:
     ret
 
 _start:
-    li a0, -70
+    la a0, y_ang
+    li a7, 169
+    ecall
+    la a1, buffer
+    li a2, 10
+    jal itoa
+    jal puts
+
+    jal trigger_gps
+    jal get_coordinates
+    li s1, -60
+    li a0, 1
+    jal set_engine_direction
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        lw t0, z_coord
+        beq t0, s1, 1f
+        j 1b
+    1:
+
+    li a0, -58
     jal turn
+    li a0, 1
+    jal set_engine_direction
+
+    1:
+        jal trigger_gps
+        jal get_coordinates
+        jal check_distance
+        beqz a0, 1b
+    1:
+
     li a0, 0
     jal exit
 
