@@ -45,6 +45,7 @@ read:
         beq a0, s1, 1f # if byte is a line break, end loop
         j 1b
     1:
+    debug_pqp:
     mv t0, sp # t0 <= address to backwards string
     add sp, sp, s2 # (partially) reset sp
     mv t1, s2 # t1 <= length
@@ -197,41 +198,8 @@ perform_arithmetic_operation:
 
 _start:
     li sp, 0x7FFFFFC
-    # reading
-    li s1, '\n' # break condition
-    1: # loops until line break
-        jal read_byte # byte read is stored in a0
-        addi sp, sp, -1 # update sp
-        sb a0, (sp) # stack digit
-        bne a0, s1, 1b # if byte is not a line break, loop
-    mv s2, sp # s2 is the address of the 1st string
-    li s4, 0 # s4 is the string's length in ascii digits (including '\n')
-    1: # loops until line break
-        jal read_byte # byte read is stored in a0
-        addi sp, sp, -1 # update sp
-        sb a0, (sp) # stack digit
-        addi s4, s4, 1 # increment length
-        bne a0, s1, 1b # if byte is not a line break, loop
-    fim_rd:
-    mv s3, sp
-    add t0, s3, s4 # t0 <= address to backwards string
-    mv t1, s4 # t1 <= length
-    mv t2, sp # address to the start of the stack
-    sub sp, sp, t1
-    1:
-        beqz t1, 1f
-        lbu t3, (t0) # load string byte (starting from last)
-        sb t3, (t2) # store at the start
-        # updating addresses
-        addi t0, t0, 1
-        addi t2, t2, -1
-        addi t1, t1, -1
-        j 1b
-    1:
-    addi t2, t2, 1
-    mv a0, t2 # address to the start of the string
-    reverse_end:
-    lbu t0, (s2) # t0 <= operation byte
+    jal read
+    lbu t0, (a0) # t0 <= operation byte
     li t1, '1'
     beq t0, t1, op_1
     li t1, '2'
@@ -241,16 +209,17 @@ _start:
     li t1, '4'
     beq t0, t1, op_4
 op_1:
-    mv a0, s3
+    jal read
     jal write
     j end
 op_2:
-    mv a0, s3
+    jal read
     jal reverse_string
     jal write
     j end
 op_3:
-    mv a0, s3 # a0 <= address of number in base 10
+    jal read
+    mv s1, a0 # s1 <= address of number in base 10
     jal atoi
     mv a1, s1 # override previous string (base 10) with number in base 16
     li a2, 16 # base 16
@@ -258,7 +227,8 @@ op_3:
     jal write
     j end
 op_4:
-    mv a0, s3
+    jal read
+    mv s1, a0
     jal perform_arithmetic_operation
     mv a1, s1
     li a2, 10
