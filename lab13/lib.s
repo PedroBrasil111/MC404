@@ -15,3 +15,4 @@
 .set MIDI_VEL, 0xFFFF0305  # byte  - Note velocity
 .set MIDI_DUR, 0xFFFF0306  # short - Note duration
 
+_start:

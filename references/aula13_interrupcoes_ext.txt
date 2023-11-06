@@ -1,0 +1,122 @@
+CSRs (Control and Status Registers)
+    Instruções
+    - csrr t0, mstatus (copia o conteúdo do CSR mstatus p/ t0)
+    - csrw mstatus, t0 (copia o conteúdo de t0 p/ o CSR mstatus)
+    - csrrw t0, mscratch, t0 (troca o conteúdo do CSR mscratch)
+    Escrita
+    * Escrever 1 em mstatus.MIE (bit 3 do registrador mstatus):
+        - csrr t0, mstatus
+          ori t0, t0, 0x8
+          csrw mstatus, t0 
+        - li t0, 0x8
+          csrs mstatus, t0
+    * Escrever 0 em mstatus.MIE:
+        - csrr t0, mstatus
+          li t1, ~0x8
+          and t0, t0, t1
+          csrw mstatus, t0
+        - li t0, 0x8
+          csrc mstatus, t0
+
+Registradores:
+    mstatus
+    - MIE (bit 3): habilita (1) ou desabilita (0) tratamento de interrupções pela CPU
+    - MPIE (bit 7): Salva o valor anterior do MIE qnd interrupção é tratada pela CPU
+    - MPP (bits 11-12): Modo de operação anterior é salvo neste campo
+    mcause
+    - INTERRUPT (bit 31): indica se foi interrupção (1) ou exceção (0)
+        * usar comparação bgez para verificar se é exceção ou int.
+    - EXCCODE (bits 0-30): indica causa da interrupção. Interrupções  externas são indicadas com o valor 0xB nesse campo
+    mtvec
+    - BASE (bits 2-31): endereço q será utilizado p/ invocar a ISR
+    - MODE (bits 0-1): indica a forma de se identificar o endereço da ISR
+        * Direct Mode (MODE = 00) - Endereço determinado pelo valor em mtvec.BASE
+        * Vectored Mode (MODE = 01) - Endereço determinado pelo valor em mtvec.BASE + (4*mcause.EXCCODE)
+    mie
+    - MEIE (bit 11): halibita/desabilita (1/0) o tratamento de interrup. externas pela CPU
+    mip
+    - MEIP (bit 11): indica se há uma interrupção externa pendente
+    mepc
+    - quando uma interrupção ocorre, a CPU salva o valor do registrador PC em mepc antes de setar PC com o endereço da ISR
+    mscratch
+    -  registrador auxiliar que pode ser usado para facilitar a implementação da ISR
+
+Implementação de ISRs
+# Main Interrupt Service Routine
+    main_isr:
+        # Salva contexto
+        # Trata interrupção
+        # Recupera contexto
+
+    # Configuração do sistema durante a operação de reset
+    _start:
+        # Registrar a ISR
+        la t0, main_isr # Grava o endereço da ISR principal
+        csrw mtvec, t0 # no registrador mtvec
+        ...
+
+Salvando contexto
+    main_isr:
+        # Salvar o contexto
+        csrrw sp, mscratch, sp  # Troca sp com mscratch
+        addi sp, sp, -64        # Aloca espaço na pilha da ISR
+        sw a0, 0(sp)            # Salva a0
+        sw a1, 4(sp)            # Salva a1
+        ...
+        # Trata a interrupção
+        ...
+        # Recupera o contexto
+        ...
+        lw a1, 4(sp)            # Recupera a1
+        lw a0, 0(sp)            # Recupera a0
+        addi sp, sp, 64         # Desaloca espaço da pilha da ISR
+        csrrw sp, mscratch, sp  # Troca sp com mscratch novamente
+        mret # Retorna da interrupção
+
+Instrução mret
+    CPU recupera o estado anterior do PC
+
+Tratando a interrupção
+    main_isr:
+        ...
+        # Trata a interrupção
+        csrr a1, mcause         # lê a causa da interrupção
+        bgez a1, handle_exc     # Verifica se é exceção ou int.
+        andi a1, a1, 0x3f       # Isola a causa de interrupção
+        li a2, 11 # a2 = interrupção externa
+        bne a1, a2, otherInt    # desvia se não for interrupção
+                                # externa
+        # Trata interrupção externa
+        jal external_isr
+        ...
+
+    # Podemos colocar os endereços da ISRs em uma tabela indexada pelo EXCCODE
+    interrup_isr_table:
+        .word user_sw_int # EXCCODE = 0
+        .word supervisor_sw_isr # EXCCODE = 1
+        .word unimp_isr # EXCCODE = 2
+        .word unimp_isr # EXCCODE = 3
+        ...
+        .word external_isr # EXCCODE = 11
+
+    main_isr:
+        ...
+        csrr a1, mcause       # lê a causa da interrupção
+        bgez a1, handle_exc   # Verifica se é exceção ou int.
+        andi a1, a1, 0x3f     # Isola EXCCODE
+        slli a1, a1, 2        # a1 = EXCCODE x 4
+        la a0, interrup_isr_table
+        add a0, a0, a1
+        lw a0, (a0)           # a0 = interrupt_isr_table[EXCODE]
+        jalr a0               # Invoca o tratador correto
+        ...
+
+Em suma, quando uma interrupção é tratada:
+    ● O hardware (CPU) automaticamente
+        ○ salva parte do contexto em registradores especiais (mepc,mstatus.MPIE,...);
+        ○ desvia o fluxo de execução de acordo com o modo de operação em mtvec.MODE e o endereço em mtvec.BASE
+    ● O software (código da ISR) deve
+       ○ salvar o restante do contexto;
+        ○ tratar a interrupção;
+        ○ recuperar o contexto.
+            ■ Contexto salvo pela CPU é recuperado com a instrução mret!

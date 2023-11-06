@@ -1,0 +1,41 @@
+Tratando exceções:
+    csrr t1, mstatus # Update the mstatus.MPP
+    li t2, ~0x1800 # field (bits 11 and 12)
+    and t1, t1, t2 # with value 00 (U-mode)
+    csrw mstatus, t1
+    
+    la t0, user_main # Loads the user software
+    csrw mepc, t0 # entry point into mepc
+
+    mret # PC <= MEPC; mode <= MPP;
+
+    XXXXXXXXXXXXXXX
+
+    exception_handling:
+        # Salvar o contexto
+        csrrw sp, mscratch, sp # Troca sp com mscratch
+        addi sp, sp, -64 # Aloca espaço na pilha
+        sw a0, 0(sp) # Salva a0
+        sw a1, 4(sp) # Salva a1
+        ...
+        # Trata a exceção
+        ...
+        # Recupera o contexto
+        ...
+        lw a1, 4(sp) # Recupera a1
+        lw a0, 0(sp) # Recupera a0
+        addi sp, sp, 64 # Desaloca espaço da pilha
+        csrrw sp, mscratch, sp # Troca sp com mscratch novamente
+        mret # Recupera o restante do contexto
+
+RISC-V:
+    A rotina de tratamento de interrupções por software deve:
+        ● Terminar de salvar o contexto;
+        ● Tratar a interrupção por software; e
+        ● Recuperar o contexto.
+            ○ Este último passo também pode ser opcional. Por exemplo, a chamada de sistema exit solicita a interrupção do processo, logo, o contexto não deve ser recuperado.
+        
+    # Ajustando MEPC para retornar de uma chamada de sistema
+    csrr a1, mepc       # carrega endereço de retorno (endereço da instrução que invocou a syscall)
+    addi a1, a1, 4      # soma 4 no endereço de retorno (para retornar após a ecall)
+    csrw mepc, a1       # armazena endereço de retorno de volta no mepc
