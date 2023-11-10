@@ -1,13 +1,22 @@
-.bss
-stack: .skip 128
+.section .bss
+.align 4
+isr_stack: # Final da pilha das ISRs
+.skip 1024 # Aloca 1024 bytes para a pilha
+isr_stack_end: # Base da pilha das ISRs
+.align 2
 _system_time: .skip 4
 
-.text
+.data
+.align 2
+buffer: .asciz "aaa"
+
+.section .text
+.align 2
 .globl _start
 .globl _system_time
 .globl play_note
+.globl main_isr
 
-.set NULL, 0
 # 0xFFFF0100 - 0xFFFF0300 - general_purpose_timer.js
 .set GPT_READ, 0xFFFF0100  # byte  - Storing “1” triggers the GPT device to start reading the current system time. The register is set to 0 when the reading is completed
 .set GPT_TIME, 0xFFFF0100  # word  - Stores the time (in milliseconds) at the moment of the last reading by the GPT
@@ -33,109 +42,57 @@ play_note:
     sb a0, (t0) # start playing on ch
     ret
 
-_start:   
-    csrr t0, mstatus
-    ori t0, t0, 0x8
-    csrw mstatus, t0
-    # initialize the stack
-    la sp, stack
-    addi sp, sp, 128
+_start:
     # Registrar a ISR
-    la t0, main_isr # Grava o endereço da ISR principal
-    csrw mtvec, t0 # no registrador mtvec
-    # initalize _system_time
-    la t0, _system_time
-    li t1, 0
-    sw t1, (t0) # initialize as zero
+    la t0, main_isr # Carrega o endereço da main_isr
+    csrw mtvec, t0 # em mtvec
+    # Configura mscratch com o topo da pilha das ISRs
+    la t0, isr_stack_end # t0 <= base da pilha
+    csrw mscratch, t0 # mscratch <= t0
+    # Habilita Interrupções Externas
+    csrr t1, mie # Seta o bit 11 (MEIE)
+    li t2, 0x800 # do registrador mie
+    or t1, t1, t2
+    csrw mie, t1
+    # Habilita Interrupções Global
+    csrr t1, mstatus # Seta o bit 3 (MIE)
+    ori t1, t1, 0x8 # do registrador mstatus
+    csrw mstatus, t1
     # initialize GPT
     li t0, 100
     li t1, GPT_INT
     sw t0, (t1) # set interruption interval as 100 ms
-    li t1, GPT_READ
-    sw t0, (t1) # triggers the GPT to start
     jal main # plays music
     li a0, 0
     jal exit # exit with code 0
+.align 2
+main_isr:
+    # Salvar o contexto
+    csrrw sp, mscratch, sp  # Troca sp com mscratch
+    addi sp, sp, -12        # Aloca espaço na pilha da ISRs
+    sw t0, 0(sp)
+    sw t1, 4(sp)
+    sw t2, 8(sp)
+    # Trata a interrupção
+    la t1, _system_time
+    lw t2, (t1)
+    addi t2, t2, 100
+    sw t2, (t1)
+    li t0, 100
+    li t1, GPT_INT
+    sw t0, (t1) # set interruption interval as 100 ms
+    # Recupera o contexto
+    lw t0, 0(sp)
+    lw t1, 4(sp)
+    lw t2, 8(sp)
+    addi sp, sp, 12         # Desaloca espaço da pilha da ISR
+    csrrw sp, mscratch, sp  # Troca sp com mscratch novamente
+    mret # Retorna da interrupção
 
 # Terminate calling process
 # Parameters: a0 - status code
 # No return value
 exit:
+    li a0, 0
     li a7, 93    # syscall exit (93)
     ecall
-
-main_isr:
-    # Salvar o contexto
-    csrrw sp, mscratch, sp  # Troca sp com mscratch
-    addi sp, sp, -128        # Aloca espaço na pilha da ISR
-    sw a0, 0(sp)
-    sw a1, 4(sp)
-    sw a2, 8(sp)
-    sw a3, 12(sp)
-    sw a4, 16(sp)
-    sw a5, 20(sp)
-    sw a6, 24(sp)
-    sw a7, 28(sp)
-    sw s0, 32(sp)
-    sw s1, 36(sp)
-    sw s3, 40(sp)
-    sw s4, 44(sp)
-    sw s5, 48(sp)
-    sw s6, 52(sp)
-    sw s7, 56(sp)
-    sw s8, 60(sp)
-    sw s9, 64(sp)
-    sw s10, 68(sp)
-    sw s11, 72(sp)
-    sw t0, 76(sp)
-    sw t1, 80(sp)
-    sw t2, 84(sp)
-    sw t3, 88(sp)
-    sw t4, 92(sp)
-    sw t5, 96(sp)
-    sw t6, 100(sp)
-    sw gp, 104(sp)
-    sw tp, 108(sp)
-    sw s2, 112(sp)
-
-    # Trata a interrupção
-    li t0, GPT_TIME
-    lw t0, (t0) # t0 <= time passed since last reading
-    la t1, _system_time
-    lw t2, (t1) # t2 <= system time up until last reading
-    add t2, t2, t0 # t2 <= current system time
-    sw t2, (t1) # store t2 into _system_time
-
-    # Recupera o contexto
-    lw a0, 0(sp)
-    lw a1, 4(sp)
-    lw a2, 8(sp)
-    lw a3, 12(sp)
-    lw a4, 16(sp)
-    lw a5, 20(sp)
-    lw a6, 24(sp)
-    lw a7, 28(sp)
-    lw s0, 32(sp)
-    lw s1, 36(sp)
-    lw s3, 40(sp)
-    lw s4, 44(sp)
-    lw s5, 48(sp)
-    lw s6, 52(sp)
-    lw s7, 56(sp)
-    lw s8, 60(sp)
-    lw s9, 64(sp)
-    lw s10, 68(sp)
-    lw s11, 72(sp)
-    lw t0, 76(sp)
-    lw t1, 80(sp)
-    lw t2, 84(sp)
-    lw t3, 88(sp)
-    lw t4, 92(sp)
-    lw t5, 96(sp)
-    lw t6, 100(sp)
-    lw gp, 104(sp)
-    lw tp, 108(sp)
-    lw s2, 112(sp)
-    addi sp, sp, 128         # Desaloca espaço da pilha da ISR
-    csrrw sp, mscratch, sp  # Troca sp com mscratch novamente
-    mret # Retorna da interrupção
