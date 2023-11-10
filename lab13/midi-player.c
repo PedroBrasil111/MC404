@@ -25,7 +25,7 @@ int notas[13][6] = {{720, 840, 4, 5, 40, 95},
                     {5760, 6720, 4, 5, 36, 95},
                     {6720, 7680, 4, 5, 35, 95}};
 
-void main(){
+int main(){
   int bpm = 124;
   int ticks = 960;
   int last_ini = 0;
@@ -45,5 +45,5 @@ void main(){
     }
   }
   
-  return;
+  return 0;
 }
