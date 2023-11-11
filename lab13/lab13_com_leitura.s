@@ -66,17 +66,18 @@ main_isr:
     sw t1, 4(sp)
     sw t2, 8(sp)
     # Trata a interrupção
-    la t1, _system_time
-    lw t2, (t1)
-    addi t2, t2, 100
-    sw t2, (t1)
-    csrr t0, mepc # load return address (address of
-    # the instruction that invoked the syscall)
-    addi t0, t0, 4 # adds 4 to the return address (to return after ecall)
-    csrw mepc, t0 # stores the return address back on mepc
     li t0, 100
     li t1, GPT_INT
     sw t0, (t1) # set interruption interval as 100 ms
+    li t0, GPT_READ
+    li t1, 1
+    sb t1, (t0)
+    1:
+        lbu t1, (t0)
+        bnez t1, 1b
+    li t0, GPT_TIME
+    lw t0, (t0)
+    sw t0, _system_time, t1
     # Recupera o contexto
     lw t0, 0(sp)
     lw t1, 4(sp)
