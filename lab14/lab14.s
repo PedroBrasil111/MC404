@@ -137,19 +137,19 @@ _start:
     # registering the ISR (Direct mode)
     la t0, int_handler     # loads the address of the routine that will handle interrupts
     csrw mtvec, t0         # (and syscalls) on the register MTVEC to set the interrupt array.
-    # enabling external interrupts
-    li t0, 0x800
-    csrs mie, t0           # sets mie.MEIE (bit 11) as 1
-    # enabling global interrupts
-    li t0, 0x8
-    csrs mstatus, t0       # sets mstatus.MIE (bit 3) as 1
     # initializing stacks
     la t0, isr_stack_end
     csrw mscratch, t0      # sets ISR stack
     la sp, user_stack_end  # sets user stack
+    # enabling external interrupts
+    li t0, 0x800
+    csrs mie, t0           # sets mie.MEIE (bit 11) as 1
     # setting user mode
     li t0, 0x1800
     csrc mstatus, t0       # updates the mstatus.MPP field (bits 11-12) with value 00 (U-mode)
+    # enabling global interrupts
+    li t0, 0x8
+    csrs mstatus, t0       # sets mstatus.MIE (bit 3) as 1
     # loading user software
     la t0, user_main 
     csrw mepc, t0          # loads the user software entry point into mepc
@@ -159,5 +159,5 @@ _start:
 control_logic:
     li a0, 1
     li a1, -15
-    li a7, 10
+    li a7, 10              # code for set engine and steering wheel syscall
     ecall

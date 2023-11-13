@@ -47,16 +47,20 @@ _start:
     # initializing mscratch with the ISR's stack
     la t0, isr_stack_end  # t0 <= stack's base
     csrw mscratch, t0     # mscratch <= t0
+    # initializing _system_time
+    la t0, _system_time
+    li t1, 0
+    sw t1, (t0)           # initializes as 0
+    # initalizing the GPT
+    li t0, 100
+    li t1, GPT_INT
+    sw t0, (t1)           # sets next interrupt to happen in 100 ms
     # enabling external interrupts
     li t0, 0x800
     csrs mie, t0          # sets mie.MEIE (bit 11) as 1
     # enabling global interrupts
     li t0, 0x8
     csrs mstatus, t0      # sets mstatus.MIE (bit 3) as 1
-    # initalizing the GPT
-    li t0, 100
-    li t1, GPT_INT
-    sw t0, (t1)           # sets next interrupt to happen in 100 ms
     # playing song
     jal main
 

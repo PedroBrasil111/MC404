@@ -52,23 +52,6 @@ trigger_reg_port:
     # loop ended - return
     ret
 
-# # Parameters: a0 - steering wheel value, ranging from -127 to 127
-# set_steering_wheel_angle:
-#     li t0, STEERING_WHEEL_REG_PORT
-#     sb a0, (t0) # set steering wheel direction
-#     ret
-# 
-# # Parameters: a0 - engine direction: 1 (fwd), 0 (off), -1 (bwd)
-# set_engine_direction:
-#     li t0, ENGINE_DIR_REG_PORT
-#     sb a0, (t0)
-#     ret
-# 
-# get_object_distance:
-#     li a0, SENSOR_DIST_DATA_PORT
-#     lw a0, (a0)
-#     ret
-
 # a0: movement direction (-1/0/1), a1: steering wheel angle (-127, 127)
 syscall_set_engine_and_steering:
     # storing ra
@@ -108,44 +91,10 @@ syscall_set_handbrake:
 # Parameters: a0 - address of an array with 256 elements that will store 
 #                  the values read by the luminosity sensor
 syscall_read_sensors:
-    # storing registers
-    addi sp, sp, -16
-    sw ra, (sp)
-    sw s1, 4(sp)
-    # reading camera
-    mv s1, a0
-    li a0, LINE_CAMERA_REG_PORT
-    jal trigger_reg_port           # triggers line camera
-    # copying array to parameter address
-    li t1, CAMERA_IMAGE_DATA_PORT  # t1 <= address where image is stored
-    addi t0, t1, 256               # end address (stop condition)
-1:  # loops for each byte
-    lbu t2, (t1)                   # load current byte
-    sb t2, (s1)                    # store in array
-    addi t1, t1, 1                 # next byte
-    addi s1, s1, 1                 # next byte
-    bltu t1, t0, 1b                # loop if end address hasn't been reached
-    # restoring registers and returning
-    lw ra, (sp)
-    lw s1, 4(sp)
-    addi sp, sp, 16
     ret
 
 # return value: value obtained on the sensor reading; -1 in case no object has been detected in less than 20 meters
 syscall_read_sensor_distance:
-    # storing registers
-    addi sp, sp, -16
-    sw ra, (sp)
-    sw s1, 4(sp)
-    # reading sensor
-    li a0, SENSOR_REG_PORT
-    jal trigger_reg_port  # triggers ultrassonic sensor
-    li t0, SENSOR_DIST_DATA_PORT
-    lw a0, (t0)           # a0 <= distance (in cm)
-    # restoring registers and returning
-    lw ra, (sp)
-    lw s1, 4(sp)
-    addi sp, sp, 16
     ret
 
 # Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z position, respectively
@@ -181,132 +130,26 @@ syscall_get_position:
 
 # Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z angle, respectively
 syscall_get_rotation:
-    # storing registers
-    addi sp, sp, -16
-    sw ra, (sp)
-    sw s1, 4(sp)
-    sw s2, 8(sp)
-    sw s3, 12(sp)
-    # moving addresses
-    mv s1, a0
-    mv s2, a1
-    mv s3, a2
-    # triggering gps read
-    li a0, GPS_REG_PORT
-    jal trigger_reg_port  # triggers gps
-    # storing values
-    li t0, EULER_ANG_X_DATA_PORT
-    lw t1, 0(t0)          # t1 <= x angle
-    sw t1, (s1)           # storing x angle
-    lw t1, 4(t0)          # t2 <= y angle
-    sw t1, (s2)           # storing y angle
-    lw t1, 8(t0)          # t2 <= z angle
-    sw t1, (s3)           # storing z angle
-    # restoring registers
-    lw ra, (sp)
-    lw s1, 4(sp)
-    lw s2, 8(sp)
-    lw s3, 12(sp)
-    addi sp, sp, 16
     ret
 
 # reads one byte from the Serial Port and returns it
 read_byte:
-    li t0, READ_REG_PORT
-    li t1, 1
-    sb t1, (t0) # triggers read
-    # loops until reading is complete
-1:
-    lbu t1, (t0)  # load byte at reg port
-    bnez t1, 1b   # if it's not zero, loop
-    li t0, READ_REG_DATA
-    lbu a0, (t0)  # loads byte onto a0
     ret
 
 # Parameters: a0 - byte that will be written
 write_byte:
-    li t0, WRITE_REG_DATA
-    sb a0, (t0) # store byte
-    li t0, WRITE_REG_PORT
-    li t1, 1
-    sb t1, (t0)   # trigger write
-1: # loops until writing is complete
-    lbu t1, (t0)  # load byte at reg port
-    bnez t1, 1b   # if it's not zero, loop
     ret
 
 # Parameters: a0 - buffer, a1 - size
 # Return value: a0 - number of characters read
 syscall_read_serial:
-    # storing registers
-    addi sp, sp, -16
-    sw ra, (sp)
-    sw s1, 4(sp)
-    sw s2, 8(sp)
-    sw s3, 12(sp)
-    # reading string
-    mv s1, a0        # s1 <= buffer address
-    mv s2, a1        # s2 <= size
-    li s3, 0         # counter (number of characters read)
-1: # loops for each character
-    bgeu s3, s2, 1f  # if s3 >= size, then end loop
-    jal read_byte    # a0 <= current byte
-    beqz a0, 1f      # if byte is null, then end loop
-    add t2, s1, s3   # t2 <= address where byte will be stored
-    sb a0, (t2)      # stores byte
-    addi s3, s3, 1   # increments counter
-    # li t1, '\n'      # stop condition
-    # beq a0, t1, 1f   # if byte == '\n', then end loop
-    j 1b
-1:
-    mv a0, s3       # a0 <= number of characters read
-    # restoring registers
-    lw ra, (sp)
-    lw s1, 4(sp)
-    lw s2, 8(sp)
-    lw s3, 12(sp)
-    addi sp, sp, 16
     ret
 
 # Parameters: a0 - buffer, a1 - size
 syscall_write_serial:
-    # storing registers
-    addi sp, sp, -16
-    sw ra, (sp)
-    sw s1, 4(sp)
-    sw s2, 8(sp)
-    sw s3, 12(sp)
-    # writing string
-    mv s1, a0       # s1 <= buffer
-    add s2, s1, a1  # s2 <= stop condition (end address = buffer address + size)
-1:  # loops for each character
-    bge s1, s2, 1f  # if current address >= end address, then end loop
-    lbu a0, (s1)    # loads character
-    jal write_byte  # writes the byte in a0
-    addi s1, s1, 1  # update address
-    j 1b
-1:
-    # restoring registers
-    lw ra, (sp)
-    lw s1, 4(sp)
-    lw s2, 8(sp)
-    lw s3, 12(sp)
-    addi sp, sp, 16
     ret
 
 syscall_get_systime:
-    li t0, GPT_REG_PORT
-    li t1, 1
-    sb t1, (t0)             # trigger the GPT
-1:  # loops until reading is complete
-    lbu t1, (t0)
-    bnez t1, 1b
-    # loop end, returning system time
-    li t0, TIME_DATA_PORT  # t0 <= address where time is stored
-    lw a0, (t0)            # a0 <= current time
-    # la t1, _system_time
-    # lw t1, (t1)
-    # sub a0, a0, t1
     ret
 
 int_handler:
@@ -328,13 +171,6 @@ int_handler:
     sw s3, 44(sp)
     sw s4, 48(sp)
     sw ra, 52(sp)
-    # # setting user mode
-    # li t0, 0x1800           # updates the mstatus.MPP field (bits 11 and 12) with value 00 (U-mode)
-    # csrc mstatus, t0
-    # setting return address
-    csrr t0, mepc           # loads return address (address of the instruction that invoked the syscall)
-    addi t0, t0, 4          # adds 4 to the return address (to return after ecall)
-    csrw mepc, t0           # stores the return address back on mepc
     # handling interrupt
     li t0, 10
     beq a7, t0, engine_and_steering_int
@@ -384,6 +220,13 @@ systime_int:
 syscall_end:
     lw a0, 20(sp)
 syscall_ret_end:
+    # setting user mode
+    li t0, 0x1800           # updates the mstatus.MPP field (bits 11 and 12) with value 00 (U-mode)
+    csrc mstatus, t0
+    # setting return address
+    csrr t0, mepc           # load return address (address of the instruction that invoked the syscall)
+    addi t0, t0, 4          # adds 4 to the return address (to return after ecall)
+    csrw mepc, t0           # stores the return address back on mepc
     # restoring registers
     lw t0, 0(sp)
     lw t1, 4(sp)
@@ -410,6 +253,12 @@ _start:
     # registering the ISR (Direct mode)
     la t0, int_handler     # loads the address of the routine that will handle interrupts
     csrw mtvec, t0         # (and syscalls) on the register MTVEC to set the interrupt array.
+    # enabling external interrupts
+    li t0, 0x800
+    csrs mie, t0           # sets mie.MEIE (bit 11) as 1
+    # enabling global interrupts
+    li t0, 0x8
+    csrs mstatus, t0       # sets mstatus.MIE (bit 3) as 1
     # initializing stacks
     la t0, isr_stack_end
     csrw mscratch, t0      # sets ISR stack
@@ -418,12 +267,6 @@ _start:
     # setting user mode
     li t0, 0x1800
     csrc mstatus, t0       # updates the mstatus.MPP field (bits 11-12) with value 00 (U-mode)
-    # enabling global interrupts
-    li t0, 0x8
-    csrs mstatus, t0       # sets mstatus.MIE (bit 3) as 1
-    # enabling external interrupts
-    li t0, 0x800
-    csrs mie, t0           # sets mie.MEIE (bit 11) as 1
     # loading user software
     la t0, main 
     csrw mepc, t0          # loads the user software entry point into mepc

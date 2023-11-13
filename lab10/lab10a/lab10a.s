@@ -69,7 +69,7 @@ puts:
     addi sp, sp, 16
     ret
 
-# Reads characters from the standard input (stdin) and stores them as a C string
+# Reads characters from the standard input (stdin) and stores them as a string
 # into the address in a0 until a newline character or the end-of-file is reached.
 # Parameters: a0 - buffer to be filled
 # Return value: a0 - buffer address.
