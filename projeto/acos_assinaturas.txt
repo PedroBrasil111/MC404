@@ -1,0 +1,82 @@
+# General Purpose Timer (GPT) - 0xFFFF0100 - 0xFFFF0300
+.set GPT_REG_PORT, 0xFFFF0100  # byte  - storing “1” triggers the GPT device to start reading the
+                           # current system time. The register is set to 0 when the reading is completed
+.set TIME_DATA_PORT, 0xFFFF0104  # word  - stores the time (in milliseconds) at the moment of the
+                           # last reading by the GPT
+.set GPT_INT_DATA_PORT, 0xFFFF0108   # word  - storing v > 0 programs the GPT to generate an external interruption
+                           # after v milliseconds. It also sets this register to 0 after v milliseconds
+                           # (immediately before generating the interruption)
+
+# Self Driving Car - 0xFFFF0300 - 0xFFFF0500
+.set GPS_REG_PORT, 0xFFFF0300 # byte
+.set LINE_CAMERA_REG_PORT, 0xFFFF0301 # byte
+.set SENSOR_REG_PORT, 0xFFFF0302 # byte
+.set EULER_ANG_X_DATA_PORT, 0xFFFF0304 # word
+.set EULER_ANG_Y_DATA_PORT, 0xFFFF0308 # word
+.set EULER_ANG_Z_DATA_PORT, 0xFFFF030C # word
+.set X_AXIS_DATA_PORT, 0xFFFF0310 # word
+.set Y_AXIS_DATA_PORT, 0xFFFF0314 # word
+.set Z_AXIS_DATA_PORT, 0xFFFF0318 # word
+.set SENSOR_DIST_DATA_PORT, 0xFFFF031C # word
+.set STEERING_WHEEL_REG_PORT, 0xFFFF0320 # byte
+.set ENGINE_DIR_REG_PORT, 0xFFFF0321 # byte
+.set HAND_BR_REG_PORT, 0xFFFF0322 # byte
+.set CAMERA_IMAGE_DATA_PORT, 0xFFFF0324 # 256-byte array
+
+# Serial Port - 0xFFFF0500 - 0xFFFF0700
+.set WRITE_REG_PORT, 0xFFFF0500 # byte - Storing “1” triggers the serial port to write (to the stdout) the byte stored at base+0x01. The register is set to 0 when writing is completed
+.set WRITE_REG_DATA, 0xFFFF0501 # byte - Byte to be written.
+.set READ_REG_PORT, 0xFFFF0502 # byte - Storing “1” triggers the serial port to read (from the stdin) a byte and store it at base+0x03. The register is set to 0 when reading is complete.
+.set READ_REG_DATA, 0xFFFF0503 # byte - Byte read. Null when stdin is empty.
+
+
+# parameters: a0 - 0, 1 or 2 to trigger gps, line camera or ultrassonic sensor, respectively
+trigger_reg_port:
+
+
+# Parameters: a0 - steering wheel value, ranging from -127 to 127
+set_steering_wheel_angle:
+
+
+# Parameters: a0 - engine direction: 1 (fwd), 0 (off), -1 (bwd)
+set_engine_direction:
+
+
+# a0: movement direction (-1/0/1), a1: steering wheel angle (-127, 127)
+syscall_set_engine_and_steering:
+
+
+# Parameters: a0 - 1 (enabled), 0 (disabled)
+syscall_set_handbrake:
+
+
+# Parameters: a0 - address of an array with 256 elements that will store 
+#                  the values read by the luminosity sensor
+syscall_read_sensors:
+
+
+# Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z position, respectively
+syscall_get_position:
+
+# Parameters: a0 - buffer, a1 - size
+# Return value: a0 - number of characters read
+syscall_read_serial:
+
+REGISTRADORES DISPONIVEIS
+t0 - t4, a0 - a3, s1 - s4
+
+TEMPLATE FUNÇÃO
+    # storing registers
+    addi sp, sp, -16
+    sw ra, (sp)
+    sw s1, 4(sp)
+    sw s2, 8(sp)
+    sw s3, 12(sp)
+
+    # restoring registers
+    lw ra, (sp)
+    lw s1, 4(sp)
+    lw s2, 8(sp)
+    lw s3, 12(sp)
+    addi sp, sp, 16
+    ret
