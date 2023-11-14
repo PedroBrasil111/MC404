@@ -16,7 +16,7 @@
 */
 # int set_engine(int vertical, int horizontal);
 set_engine:
-    li a7, 10 # syscall set engine and steering
+    li a7, 10 # Syscall set engine and steering
     ecall     # a0 <= 0 in case of success, -1 if a parameter is out of bounds
     ret
 
@@ -33,8 +33,8 @@ set_engine:
 set_handbrake:
     andi t0, a0, ~0x1 # t0 is a0 with the last byte cleared (if a0 is 0 or 1, then t0 is 0)
     bnez t0, fail_handbrake
-    li a7, 11         # syscall set handbrake
-    ecall             # syscall has no return value
+    li a7, 11         # Syscall set handbrake
+    ecall             # Syscall has no return value
     li a0, 0
     j ret_handbrake
 fail_handbrake:
@@ -52,7 +52,7 @@ ret_handbrake:
 */
 # int read_sensor_distance();
 read_sensor_distance:
-    li a7, 13 # syscall read sensor distance
+    li a7, 13 # Syscall read sensor distance
     ecall     # a0 <= distance detected in cm, or -1 if there are no objects within 20m
     ret
 
@@ -67,8 +67,8 @@ read_sensor_distance:
 */
 # void get_position(int* x, int* y, int* z);
 get_position:
-    li a7, 15 # syscall get position
-    ecall     # syscall has no return value
+    li a7, 15 # Syscall get position
+    ecall     # Syscall has no return value
     ret
 
 /*
@@ -82,8 +82,8 @@ get_position:
 */
 # void get_rotation(int* x, int* y, int* z);
 get_rotation:
-    li a7, 16 # syscall get position
-    ecall     # syscall has no return value
+    li a7, 16 # Syscall get position
+    ecall     # Syscall has no return value
     ret
 
 /******************************************************************************/
@@ -99,7 +99,7 @@ get_rotation:
 */
 # unsigned int get_time();
 get_time:
-    li a7, 20 # syscall get systime
+    li a7, 20 # Syscall get systime
     ecall     # a0 <= time since sistem has been booted, in milliseconds
     ret
 
@@ -165,12 +165,12 @@ itoa:
 # int strlen_custom( char *str );
 strlen_custom:
     li t0, 0       # t0 will hold the string's length
-1:  # loops for each byte
-    lbu t1, (a0)   # loads byte from string
-    bez t1, 1f     # if byte is null (\0), then end loop
-    addi t0, t0, 1 # increment length
+1:  # Loops for each byte
+    lbu t1, (a0)   # Loads byte from string
+    bez t1, 1f     # If byte is null (\0), then end loop
+    addi t0, t0, 1 # Increment length
     addi a0, a0, 1 # a0 points to the next byte in the string
-    j 1b           # loop
+    j 1b           # Loop
 1:
     mv a0, t0      # a0 is now the string's length
     ret
@@ -186,11 +186,11 @@ strlen_custom:
 # int approx_sqrt(int value, int iterations);
 approx_sqrt:
     # k = y/2, k' = (k + y/k)/2
-    li t0, 0       # counter for iterations
+    li t0, 0       # Counter for iterations
     srli t1, a0, 1 # t1 is the initial guess k = y/2
-1:
-    bge t0, a1, 1f # if counter >= number of iterations then end loop
-    addi t0, t0, 1 # update counter
+1:  # Loops the same number of times as iterations
+    bge t0, a1, 1f # If counter >= number of iterations then end loop
+    addi t0, t0, 1 # Update counter
     div t2, a0, t1 # t2 = y/k
     add t2, t2, t1 # t2 += k
     srli t2, t2, 1 # t2 /= 2
@@ -215,7 +215,7 @@ approx_sqrt:
 #                       a0       a1       a2       a3       a4       a5
 # int get_distance(int x_a, int y_a, int z_a, int x_b, int y_b, int z_b);
 get_distance:
-    # storing ra
+    # Storing ra
     addi sp, sp, -16
     sw ra, (sp)
     # distance = sqrt((xa-xb)^2 + (ya-yb)^2 + (za-zb)^2)
@@ -228,7 +228,7 @@ get_distance:
     add t0, t0, t1
     add a0, t0, t2  # a0 <= distance ^ 2
     jal approx_sqrt # a0 <= distance
-    # recovering ra
+    # Recovering ra
     lw ra, (sp)
     addi sp, sp, 16
     ret
@@ -244,13 +244,13 @@ get_distance:
 */
 # Node *fill_and_pop(Node *head, Node *fill);
 fill_and_pop:
-    li t0, 7        # counter
-1:  # loops for each field (there are 8 fields in total, all of them are words)
-    lw t1, (a0)     # load information from head node
+    li t0, 7        # Counter
+1:  # Loops for each field (there are 8 fields in total, all of them are words)
+    lw t1, (a0)     # Load information from head node
     sw t1, (a1)     # and store it in the head node
-    addi a0, a0, 4  # next field of the head node
-    addi a1, a1, 4  # next field of the fill node
-    addi t0, t0, -1 # update counter
-    bgtz t0, 1b     # if counter > 0, then loop
-    # loop end
+    addi a0, a0, 4  # Next field of the head node
+    addi a1, a1, 4  # Next field of the fill node
+    addi t0, t0, -1 # Updates counter
+    bgtz t0, 1b     # If counter > 0, then loop
+    # Loop end
     ret             # a0 <= next node on the linked list
