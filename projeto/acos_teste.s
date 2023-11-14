@@ -1,9 +1,5 @@
 .bss
 .align 4
-user_stack:             # user stack's top address (4096 bytes)
-.skip 4096
-user_stack_end:         # user stack's base address
-.align 4
 isr_stack:
 .skip 4096
 isr_stack_end:
@@ -42,21 +38,8 @@ isr_stack_end:
 
 .align 2
 
-# parameters: a0 - register port that will be triggered
-trigger_reg_port:
-    li t1, 1
-    sb t1, (a0) # trigger action
-1:  # loops until action is completed
-    lbu t1, (a0)
-    bnez t1, 1b
-    # loop ended - return
-    ret
-
 # a0: movement direction (-1/0/1), a1: steering wheel angle (-127, 127)
 syscall_set_engine_and_steering:
-    # storing ra
-    addi sp, sp, -16
-    sw ra, (sp)
     # treating invalid cases
     li t0, 1
     bgt a0, t0, invalid_val
@@ -72,14 +55,51 @@ syscall_set_engine_and_steering:
     li t0, ENGINE_DIR_REG_PORT
     sb a0, (t0)
     # returning
-    li a0, 0 # syscall successful
+    li a0, 0  # syscall successful
     j return_result
 invalid_val:
-    li a0, -1 # syscall failed
+    li a0, -1  # syscall failed
 return_result:
-    # restoring ra
-    lw ra, (sp)
-    addi sp, sp, 16
+    ret
+
+# Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z position, respectively
+syscall_get_position:
+    # busy waiting on GPS reading
+    li t0, GPS_REG_PORT
+    li t1, 1
+    sb t1, (t0)  # triggers gps read
+1:  # loops until reading is complete
+    lbu t1, (t0)
+    beqz t1, 1f
+    j 1b
+1:
+    # loop end, storing values
+    li t0, X_AXIS_DATA_PORT
+    lw t1, 0(t0)          # t1 <= x position
+    sw t1, (a0)           # storing x position
+    lw t1, 4(t0)          # t2 <= y position
+    sw t1, (a1)           # storing y position
+    lw t1, 8(t0)          # t2 <= z position
+    sw t1, (a2)           # storing z position
+    ret
+
+# Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z angle, respectively
+syscall_get_rotation:
+    # busy waiting on GPS reading
+    li t0, GPS_REG_PORT
+    li t1, 1
+    sb t1, (t0) # triggers gps read
+1:  # loops until reading is complete
+    lbu t1, (t0)
+    bnez t1, 1b
+    # loop end, storing values
+    li t0, EULER_ANG_X_DATA_PORT
+    lw t1, 0(t0)          # t1 <= x angle
+    sw t1, (a0)           # storing x angle
+    lw t1, 4(t0)          # t2 <= y angle
+    sw t1, (a1)           # storing y angle
+    lw t1, 8(t0)          # t2 <= z angle
+    sw t1, (a2)           # storing z angle
     ret
 
 # Parameters: a0 - 1 (enabled), 0 (disabled)
@@ -91,65 +111,95 @@ syscall_set_handbrake:
 # Parameters: a0 - address of an array with 256 elements that will store 
 #                  the values read by the luminosity sensor
 syscall_read_sensors:
+    # busy waiting on line camera reading
+    li t0, LINE_CAMERA_REG_PORT
+    li t1, 1
+    sb t1, (t0)
+1:  # loops until reading is complete
+    lbu t1, (t0)
+    bnez t1, 1b
+    # loop end
+    li t1, CAMERA_IMAGE_DATA_PORT  # t1 <= address where image is stored
+    addi t0, t1, 256               # end address (stop condition)
+1:  # loops for each byte
+    lbu t2, (t1)                   # load current byte
+    sb t2, (a0)                    # store in array
+    addi t1, t1, 1                 # next byte
+    addi a0, a0, 1                 # next byte
+    bltu t1, t0, 1b                # loop if end address hasn't been reached
     ret
 
 # return value: value obtained on the sensor reading; -1 in case no object has been detected in less than 20 meters
 syscall_read_sensor_distance:
-    ret
-
-# Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z position, respectively
-syscall_get_position:
-    # storing registers
-    addi sp, sp, -16
-    sw ra, (sp)
-    sw s1, 4(sp)
-    sw s2, 8(sp)
-    sw s3, 12(sp)
-    # saving addresses
-    mv s1, a0
-    mv s2, a1
-    mv s3, a2
-    # triggering gps read
-    li a0, GPS_REG_PORT
-    jal trigger_reg_port  # triggers gps
-    # storing values
-    li t0, X_AXIS_DATA_PORT
-    lw t1, 0(t0)          # t1 <= x position
-    sw t1, (s1)           # storing x position
-    lw t1, 4(t0)          # t2 <= y position
-    sw t1, (s2)           # storing y position
-    lw t1, 8(t0)          # t2 <= z position
-    sw t1, (s3)           # storing z position
-    # restoring registers
-    lw ra, (sp)
-    lw s1, 4(sp)
-    lw s2, 8(sp)
-    lw s3, 12(sp)
-    addi sp, sp, 16
-    ret
-
-# Parameters: a0, a1, a2 - address of the variable that will store the value of x, y, z angle, respectively
-syscall_get_rotation:
-    ret
-
-# reads one byte from the Serial Port and returns it
-read_byte:
-    ret
-
-# Parameters: a0 - byte that will be written
-write_byte:
+    # busy waiting on sensor reading
+    li t0, SENSOR_REG_PORT
+    li t1, 1
+    sb t1, (t0)
+1:  # loops until reading is complete
+    lbu t1, (t0)
+    bnez t1, 1b
+    # loop end
+    li t0, SENSOR_DIST_DATA_PORT
+    lw a0, (t0)           # a0 <= distance (in cm)
     ret
 
 # Parameters: a0 - buffer, a1 - size
 # Return value: a0 - number of characters read
 syscall_read_serial:
+    li t0, 0         # counter (number of characters read)
+1:  # loops for each character
+    bgeu t0, a1, 1f  # if t0 >= size, then end loop
+    # busy waiting on serial port reading
+    li t1, 1
+    li t2, READ_REG_PORT
+    sb t1, (t2)      # trigger read
+2:  # loops until reading is complete
+    lbu t1, (t2)
+    bnez t1, 2b
+    # loop end
+    li t2, READ_REG_DATA
+    lbu t1, (t2)     # t1 <= current byte
+    beqz t1, 1f      # if byte is null, then end loop
+    add t2, a0, t0   # t2 <= address where byte will be stored
+    sb t1, (t2)      # stores byte
+    addi t0, t0, 1   # increments counter
+    j 1b
+1:
+    mv a0, t0        # a0 <= number of characters read
     ret
 
 # Parameters: a0 - buffer, a1 - size
 syscall_write_serial:
+    # writing string
+    add t0, a0, a1  # t0 <= stop condition (end address = buffer address + size)
+1:  # loops for each character
+    bge a0, t0, 1f  # if current address >= end address, then end loop
+    lbu t1, (a0)    # loads character
+    li t2, WRITE_REG_DATA
+    sb t1, (t2)     # stores byte
+    # busy waiting on serial port writing
+    li t2, WRITE_REG_PORT
+    li t1, 1
+    sb t1, (t2)     # triggers write
+2:
+    lbu t1, (t2)    # load byte at reg port
+    bnez t1, 2b     # if it's not zero, then loop
+    # loop end
+    addi a0, a0, 1  # update address
+    j 1b
+1:
     ret
 
 syscall_get_systime:
+    li t0, GPT_REG_PORT
+    li t1, 1
+    sb t1, (t0)             # triggers the GPT
+1:  # loops until reading is complete
+    lbu t1, (t0)
+    bnez t1, 1b
+    # loop end, returning system time
+    li t0, TIME_DATA_PORT  # t0 <= address where time is stored
+    lw a0, (t0)            # a0 <= current time
     ret
 
 int_handler:
@@ -253,12 +303,6 @@ _start:
     # registering the ISR (Direct mode)
     la t0, int_handler     # loads the address of the routine that will handle interrupts
     csrw mtvec, t0         # (and syscalls) on the register MTVEC to set the interrupt array.
-    # enabling external interrupts
-    li t0, 0x800
-    csrs mie, t0           # sets mie.MEIE (bit 11) as 1
-    # enabling global interrupts
-    li t0, 0x8
-    csrs mstatus, t0       # sets mstatus.MIE (bit 3) as 1
     # initializing stacks
     la t0, isr_stack_end
     csrw mscratch, t0      # sets ISR stack
@@ -267,6 +311,12 @@ _start:
     # setting user mode
     li t0, 0x1800
     csrc mstatus, t0       # updates the mstatus.MPP field (bits 11-12) with value 00 (U-mode)
+    # enabling global interrupts
+    li t0, 0x8
+    csrs mstatus, t0       # sets mstatus.MIE (bit 3) as 1
+    # enabling external interrupts
+    li t0, 0x800
+    csrs mie, t0           # sets mie.MEIE (bit 11) as 1
     # loading user software
     la t0, main 
     csrw mepc, t0          # loads the user software entry point into mepc

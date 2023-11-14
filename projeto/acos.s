@@ -328,13 +328,6 @@ int_handler:
     sw s3, 44(sp)
     sw s4, 48(sp)
     sw ra, 52(sp)
-    # # setting user mode
-    # li t0, 0x1800           # updates the mstatus.MPP field (bits 11 and 12) with value 00 (U-mode)
-    # csrc mstatus, t0
-    # setting return address
-    csrr t0, mepc           # loads return address (address of the instruction that invoked the syscall)
-    addi t0, t0, 4          # adds 4 to the return address (to return after ecall)
-    csrw mepc, t0           # stores the return address back on mepc
     # handling interrupt
     li t0, 10
     beq a7, t0, engine_and_steering_int
@@ -384,6 +377,13 @@ systime_int:
 syscall_end:
     lw a0, 20(sp)
 syscall_ret_end:
+    # setting user mode
+    li t0, 0x1800           # updates the mstatus.MPP field (bits 11 and 12) with value 00 (U-mode)
+    csrc mstatus, t0
+    # setting return address
+    csrr t0, mepc           # load return address (address of the instruction that invoked the syscall)
+    addi t0, t0, 4          # adds 4 to the return address (to return after ecall)
+    csrw mepc, t0           # stores the return address back on mepc
     # restoring registers
     lw t0, 0(sp)
     lw t1, 4(sp)
