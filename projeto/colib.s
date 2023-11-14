@@ -1,4 +1,3 @@
-
 .text
 /******************************************************************************/
 /*  Car Peripheral                                                            */
@@ -118,7 +117,8 @@ get_time:
     Nothing
 */
 # void puts ( const char *str );
-
+puts:
+    ret
 /*
   gets function from https://www.cplusplus.com/reference/cstdio/gets/ but in this 
   case it must use the Serial Port perifpheral to perform reads.
@@ -128,6 +128,8 @@ get_time:
     Filled butter with a \0 terminated string.
 */
 # char *gets ( char *str );
+gets:
+    ret
 
 /*
   atoi function from https://www.cplusplus.com/reference/cstdlib/atoi/?kw=atoi 
@@ -137,6 +139,8 @@ get_time:
     The integer value represented by the string.
 */
 # int atoi (const char *str);
+atoi:
+    ret
 
 /*
   itoa function from https://www.cplusplus.com/reference/cstdlib/itoa/ 
@@ -148,6 +152,8 @@ get_time:
     Filled butter with a \0 terminated string.
 */
 # char *itoa ( int value, char *str, int base );
+itoa:
+    ret
 
 /*
   Custom implementation of the strlen function from https://cplusplus.com/reference/cstring/strlen/ 
@@ -157,6 +163,17 @@ get_time:
     Size of the string without counting the \0
 */
 # int strlen_custom( char *str );
+strlen_custom:
+    li t0, 0       # t0 will hold the string's length
+1:  # loops for each byte
+    lbu t1, (a0)   # loads byte from string
+    bez t1, 1f     # if byte is null (\0), then end loop
+    addi t0, t0, 1 # increment length
+    addi a0, a0, 1 # a0 points to the next byte in the string
+    j 1b           # loop
+1:
+    mv a0, t0      # a0 is now the string's length
+    ret
 
 /*
   Approximate Square Root computation using the Babylonian Method.
@@ -167,6 +184,21 @@ get_time:
     Approximate square root of value.
 */
 # int approx_sqrt(int value, int iterations);
+approx_sqrt:
+    # k = y/2, k' = (k + y/k)/2
+    li t0, 0       # counter for iterations
+    srli t1, a0, 1 # t1 is the initial guess k = y/2
+1:
+    bge t0, a1, 1f # if counter >= number of iterations then end loop
+    addi t0, t0, 1 # update counter
+    div t2, a0, t1 # t2 = y/k
+    add t2, t2, t1 # t2 += k
+    srli t2, t2, 1 # t2 /= 2
+    mv t1, t2      # t1 = t2 is the new approximation k'
+    j 1b
+1:
+    mv a0, t1      # a0 <= approximate square root
+    ret
 
 /*
   Euclidean Distance between two points, A and B, in a 3D space.
@@ -180,7 +212,26 @@ get_time:
   Returns:
     Euclidean distance between the two points.
 */
+#                       a0       a1       a2       a3       a4       a5
 # int get_distance(int x_a, int y_a, int z_a, int x_b, int y_b, int z_b);
+get_distance:
+    # storing ra
+    addi sp, sp, -16
+    sw ra, (sp)
+    # distance = sqrt((xa-xb)^2 + (ya-yb)^2 + (za-zb)^2)
+    sub t0, a0, a3  # t0 <= xa - xb
+    mul t0, t0, t0  # t0 <= (xa - xb)^2
+    sub t1, a1, a4  # t1 <= ya - yb
+    mul t1, t1, t1  # t1 <= (ya - yb)^2
+    sub t2, a2, a5  # t2 <= za - zb
+    mul t2, t2, t2  # t2 <= (za - zb)^2
+    add t0, t0, t1
+    add a0, t0, t2  # a0 <= distance ^ 2
+    jal approx_sqrt # a0 <= distance
+    # recovering ra
+    lw ra, (sp)
+    addi sp, sp, 16
+    ret
 
 /*
   It copies all fields from the head node to the fill node and 
@@ -192,3 +243,14 @@ get_time:
     Next node on the linked list.
 */
 # Node *fill_and_pop(Node *head, Node *fill);
+fill_and_pop:
+    li t0, 7        # counter
+1:  # loops for each field (there are 8 fields in total, all of them are words)
+    lw t1, (a0)     # load information from head node
+    sw t1, (a1)     # and store it in the head node
+    addi a0, a0, 4  # next field of the head node
+    addi a1, a1, 4  # next field of the fill node
+    addi t0, t0, -1 # update counter
+    bgtz t0, 1b     # if counter > 0, then loop
+    # loop end
+    ret             # a0 <= next node on the linked list

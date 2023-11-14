@@ -5,8 +5,6 @@ isr_stack:
 isr_stack_end:
 
 .text
-.align 2
-
 # General Purpose Timer (GPT) - 0xFFFF0100 - 0xFFFF0300
 .set GPT_CONTROL_REG_PORT, 0xFFFF0100      # unsigned byte
 .set SYSTIME_DATA_REG_PORT, 0xFFFF0104     # unsigned word 
@@ -75,66 +73,6 @@ syscall_get_position:
     sw t1, (a2)           # Stores z position
     ret
 
-# Parameters: a0, a1, a2 - Address of the variable that will store the value of x, y, z angle, respectively
-syscall_get_rotation:
-    # Busy waiting on GPS reading
-    li t0, GPS_CONTROL_REG_PORT
-    li t1, 1
-    sb t1, (t0)           # Triggers gps read
-1:  # Loops until reading is complete
-    lbu t1, (t0)
-    bnez t1, 1b
-    # Loop end, storing values
-    li t0, X_ANGLE_DATA_REG_PORT
-    lw t1, 0(t0)          # t1 <= x angle
-    sw t1, (a0)           # Stores x angle
-    lw t1, 4(t0)          # t2 <= y angle
-    sw t1, (a1)           # Stores y angle
-    lw t1, 8(t0)          # t2 <= z angle
-    sw t1, (a2)           # Stores z angle
-    ret
-
-# Parameters: a0 - 1 (enabled), 0 (disabled)
-syscall_set_handbrake:
-    li t0, HAND_BR_REG_PORT
-    sb a0, (t0)
-    ret
-
-# Parameters: a0 - Address of an array with 256 elements that will store 
-#                  the values read by the luminosity sensor
-syscall_read_sensors:
-    # Busy waiting on line camera reading
-    li t0, CAM_CONTROL_REG_PORT
-    li t1, 1
-    sb t1, (t0)
-1:  # Loops until reading is complete
-    lbu t1, (t0)
-    bnez t1, 1b
-    # Loop end
-    li t1, CAMERA_IMG_DATA_PORT # t1 <= address where image is stored
-    addi t0, t1, 256            # End address (stop condition)
-1:  # Loops for each byte
-    lbu t2, (t1)                # Loads current byte
-    sb t2, (a0)                 # Stores in array
-    addi t1, t1, 1              # Next byte
-    addi a0, a0, 1              # Next byte
-    bltu t1, t0, 1b             # Loops if end address hasn't been reached
-    ret
-
-# Return value: a0 - Value obtained on the sensor reading; -1 in case no object has been detected in less than 20 meters
-syscall_read_sensor_distance:
-    # Busy waiting on sensor reading
-    li t0, SENSOR_CONTROL_REG_PORT
-    li t1, 1
-    sb t1, (t0)
-1:  # Loops until reading is complete
-    lbu t1, (t0)
-    bnez t1, 1b
-    # Loop end
-    li t0, SENSOR_DIST_DATA_REG_PORT
-    lw a0, (t0)           # a0 <= distance (in cm)
-    ret
-
 # Parameters: a0 - Buffer, a1 - Size
 # Return value: a0 - Number of characters read
 syscall_read_serial:
@@ -160,41 +98,6 @@ syscall_read_serial:
     mv a0, t0        # a0 <= number of characters read
     ret
 
-# Parameters: a0 - Buffer, a1 - Size
-syscall_write_serial:
-    # Writing string
-    add t0, a0, a1  # t0 <= stop condition (end address = buffer address + size)
-1:  # Loops for each character
-    bge a0, t0, 1f  # If current address >= end address, then end loop
-    lbu t1, (a0)    # Loads character
-    li t2, WRITE_REG_PORT
-    sb t1, (t2)     # Stores byte
-    # Busy waiting on serial port writing
-    li t2, WRITE_CONTROL_REG_PORT
-    li t1, 1
-    sb t1, (t2)     # Triggers write
-2:  # Loops until byte has ben written
-    lbu t1, (t2)    # Load byte at reg port
-    bnez t1, 2b     # If it's not zero, then loop
-    # Loop end
-    addi a0, a0, 1  # Update address
-    j 1b
-1:
-    ret
-
-# Return value: a0 - Current system time
-syscall_get_systime:
-    li t0, GPT_CONTROL_REG_PORT
-    li t1, 1
-    sb t1, (t0)                  # Triggers the GPT
-1:  # Loops until reading is complete
-    lbu t1, (t0)
-    bnez t1, 1b
-    # Loop end, returning system time
-    li t0, SYSTIME_DATA_REG_PORT # t0 <= address where time is stored
-    lw a0, (t0)                  # a0 <= current time
-    ret
-
 int_handler:
     ###### Syscall and Interrupts handler ######
     # Storing context
@@ -217,51 +120,27 @@ int_handler:
     # Determining which isr to call
     li t0, 10
     beq a7, t0, engine_and_steering_int
-    li t0, 11
-    beq a7, t0, handbrake_int
-    li t0, 12
-    beq a7, t0, read_sensors_int
-    li t0, 13
-    beq a7, t0, read_sensor_distance_int
     li t0, 15
     beq a7, t0, position_int
-    li t0, 16
-    beq a7, t0, rotation_int
     li t0, 17
     beq a7, t0, read_serial_int
-    li t0, 18
-    beq a7, t0, write_serial_int
-    li t0, 20
-    beq a7, t0, systime_int
+    ################################################################
+    # ... Checking for other syscall codes and jumping accordingly #
+    ################################################################
 engine_and_steering_int:
     jal syscall_set_engine_and_steering
-    j syscall_ret_end
-handbrake_int:
-    jal syscall_set_handbrake
-    j syscall_end
-read_sensors_int:
-    jal syscall_read_sensors
-    j syscall_end
-read_sensor_distance_int:
-    jal syscall_read_sensor_distance
     j syscall_ret_end
 position_int:
     jal syscall_get_position
     j syscall_end
-rotation_int:
-    jal syscall_get_rotation
-    j syscall_end
 read_serial_int:
     jal syscall_read_serial
     j syscall_ret_end
-write_serial_int:
-    jal syscall_write_serial
-    j syscall_end
-systime_int:
-    jal syscall_get_systime
-    j syscall_ret_end
+    ########################
+    # ... Other interrupts #
+    ########################
 syscall_end:                # Label for syscalls that don't have return values
-    lw a0, 20(sp)           # Since there's no return, a0 is restored
+    lw a0, 20(sp)           # Since there's no return value, a0 is restored
 syscall_ret_end:            # Label for syscalls that return something
     # Setting user mode
     li t0, 0x1800           # Updates the mstatus.MPP field (bits 11 and 12) with value 00 (U-mode)
@@ -290,9 +169,6 @@ syscall_ret_end:            # Label for syscalls that return something
 
 .globl _start
 _start:
-    # jal syscall_get_systime
-    # la t0, _system_time
-    # sw a0, (t0)
     # Registering the ISR (Direct mode)
     la t0, int_handler     # Loads the address of the routine that will handle interrupts
     csrw mtvec, t0         # (and syscalls) on the register MTVEC to set the interrupt array.
@@ -300,7 +176,6 @@ _start:
     la t0, isr_stack_end
     csrw mscratch, t0      # Sets ISR stack
     li sp, 0x07FFFFFC      # Sets user stack
-    # la sp, user_stack_end  # sets user stack
     # Setting user mode
     li t0, 0x1800
     csrc mstatus, t0       # Updates the mstatus.MPP field (bits 11-12) with value 00 (U-mode)
