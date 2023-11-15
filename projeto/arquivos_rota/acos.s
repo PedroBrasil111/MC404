@@ -180,6 +180,17 @@ syscall_write_serial:
     addi a0, a0, 1  # Update address
     j 1b
 1:
+###########################
+    li t0, WRITE_REG_PORT
+    li t1, '\n'
+    sb t1, (t0)
+    li t0, WRITE_CONTROL_REG_PORT
+    li t1, 1
+    sb t1, (t0)
+naosei:
+    lbu t1, (t0)
+    bnez t1, naosei
+###########################
     ret
 
 # Return value: a0 - Current system time
@@ -214,6 +225,9 @@ int_handler:
     sw s3, 44(sp)
     sw s4, 48(sp)
     sw ra, 52(sp)
+    #
+    csrr t0, mcause
+    bltz t0, handle_exc
     # Determining which ISR to call
     li t0, 10
     beq a7, t0, engine_and_steering_int
@@ -287,6 +301,15 @@ syscall_ret_end:            # Label for syscalls that return something
     addi sp, sp, 64
     csrrw sp, mscratch, sp  # Switches sp and mscratch again
     mret                    # Returns from interrupt
+handle_exc:
+    # Setting user mode
+    li t0, 0x1800           # Updates the mstatus.MPP field (bits 11 and 12) with value 00 (U-mode)
+    csrc mstatus, t0
+    # Setting return address
+    csrr t0, mepc           # Loads return address (address of the instruction that invoked the syscall)
+    addi t0, t0, 4          # Adds 4 to the return address (to return after ecall)
+    csrw mepc, t0           # Stores the return address back on mepc
+    mret
 
 .globl _start
 _start:

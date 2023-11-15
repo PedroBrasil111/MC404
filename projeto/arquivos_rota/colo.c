@@ -1,4 +1,3 @@
-
 #include "control_api.h"
 
 char buffer[200];
