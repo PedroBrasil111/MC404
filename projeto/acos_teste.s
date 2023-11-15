@@ -214,7 +214,7 @@ int_handler:
     sw s3, 44(sp)
     sw s4, 48(sp)
     sw ra, 52(sp)
-    # Determining which isr to call
+    # Determining which ISR to call
     li t0, 10
     beq a7, t0, engine_and_steering_int
     li t0, 11
