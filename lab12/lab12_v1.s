@@ -293,6 +293,8 @@ itoa:
     li t0, '\n'            # stack line break (last byte)
     sb t0, (sp)
     li t2, 0               # t2 indicates whether the number is negative (1) or positive (0)
+    li t2, 10
+    bne a2, t2, not_negative # if base is not 10, jump to number conversion
     li t3, 1               # t3 is the number's length in ascii digits (including 0)
     bgez a0, not_negative
     li t2, 1
