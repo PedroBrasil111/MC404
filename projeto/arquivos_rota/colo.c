@@ -95,26 +95,56 @@ void go_to(Node* target){
 
 /* Stops engine and performs a turn to left or right until car is aligned with target gyroscope angle */
 void turn(int direction, Node* target){
-    int x, y, z;
-    int brake = 0, no_brake_count = 0;
+    int x, y, z, old_y;
+    int engine_on = 0;
+    int cycle_count = 0;
     set_handbrake(0);
     set_engine(0 , direction*90);
     get_rotation(&x, &y, &z);
+    old_y = y;
     while (is_angle_close(y, target->a_y) == 0){
         get_rotation(&x, &y, &z);
+        cycle_count++;
+        if (engine_on){
+            engine_on = 0;
+            set_engine(0, direction*90);
+        }
+        if (cycle_count == 4){
+            if (old_y == y){
+                set_engine(1 , direction*90);
+                engine_on = 1; 
+            }
+            cycle_count = 0;
+            old_y = y;
+        }
     }
     set_engine(0 , 0);
 }
 
 /* Stops engine and turns back until car is aligned with target gyroscope angle */
 void turn_back(Node* target){
-    int x, y, z;
-    int brake = 0, no_brake_count = 0;
+    int x, y, z, old_y;
+    int engine_on = 0;
+    int cycle_count = 0;
     set_handbrake(0);
     set_engine(0 , -127);
     get_rotation(&x, &y, &z);
+    old_y = y;
     while (is_angle_close(y, target->a_y) == 0){
         get_rotation(&x, &y, &z);
+        cycle_count++;
+        if (engine_on){
+            engine_on = 0;
+            set_engine(0, -127);
+        }
+        if (cycle_count == 4){
+            if (old_y == y){
+                set_engine(1 , -127);
+                engine_on = 1; 
+            }
+            cycle_count = 0;
+            old_y = y;
+        }
     }
     set_engine(0 , 0);
 }
